@@ -84,7 +84,6 @@ function draw() {
     // Draw everything
     drawGrid();
     drawPendulum();
-    drawPLLReference();
     drawInfo();
 }
 
@@ -223,38 +222,6 @@ function drawPendulum() {
     pop();
 }
 
-// Draw PLL reference oscillator (visualization)
-function drawPLLReference() {
-    push();
-    
-    // Move origin to center top
-    translate(width / 2, 100);
-    
-    // Use same visual length as pendulum
-    const minLength = 50;
-    const maxLength = 200;
-    const visualLength = map(pendulumParams.lengthCm, minLength, maxLength, 100, 200);
-    
-    // Get VCO phase from PLL
-    const vcoOutput = pll.getVCOOutput();
-    const vcoAngle = vcoOutput.phase - PI; // Convert to pendulum coordinate system
-    
-    // Calculate reference position
-    const refX = visualLength * sin(vcoAngle);
-    const refY = visualLength * cos(vcoAngle);
-    
-    // Draw reference bob (semi-transparent)
-    fill(231, 76, 60, 150);
-    noStroke();
-    circle(refX, refY, 25);
-    
-    // Draw reference rod (dashed)
-    stroke(231, 76, 60, 150);
-    strokeWeight(2);
-    drawDashedLine(0, 0, refX, refY);
-    
-    pop();
-}
 
 // Draw background grid and axes
 function drawGrid() {
@@ -339,7 +306,7 @@ function drawLegend() {
     // Background
     fill(255, 255, 255, 230);
     noStroke();
-    rect(legendX, legendY, 190, 85, 5);
+    rect(legendX, legendY, 190, 60, 5);
     
     // Title
     fill(44, 62, 80);
@@ -355,30 +322,9 @@ function drawLegend() {
     fill(44, 62, 80);
     text('Physical Pendulum', legendX + 35, legendY + 33);
     
-    // PLL Reference
-    fill(231, 76, 60);
-    circle(legendX + 20, legendY + 65, 15);
-    fill(44, 62, 80);
-    text('PLL Reference (VCO)', legendX + 35, legendY + 58);
-    
     pop();
 }
 
-// Helper function to draw dashed line
-function drawDashedLine(x1, y1, x2, y2, dashLength = 5) {
-    const distance = dist(x1, y1, x2, y2);
-    const dashes = distance / dashLength;
-    const xStep = (x2 - x1) / dashes;
-    const yStep = (y2 - y1) / dashes;
-    
-    for (let i = 0; i < dashes; i += 2) {
-        const startX = x1 + xStep * i;
-        const startY = y1 + yStep * i;
-        const endX = x1 + xStep * (i + 1);
-        const endY = y1 + yStep * (i + 1);
-        line(startX, startY, endX, endY);
-    }
-}
 
 // Normalize angle to [0, 2*PI]
 function normalizeAngle(angle) {
