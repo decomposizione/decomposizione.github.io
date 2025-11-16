@@ -97,9 +97,13 @@ function updatePendulum() {
     const lengthM = pendulumParams.lengthCm / 100; // convert cm to m
     const omega0_natural = Math.sqrt(g / lengthM); // rad/s
     
-    // Use user-set frequency or natural frequency (whichever is more appropriate)
-    // For now, use user frequency but adjust for length effects
-    let omega0 = 2 * Math.PI * pendulumParams.frequency;
+    // Use natural frequency calculated from physical length
+    // Frequency is determined by length: f = √(g/L)/(2π)
+    const naturalFreq = getNaturalFrequency();
+    let omega0 = 2 * Math.PI * naturalFreq;
+    
+    // Update frequency parameter for display
+    pendulumParams.frequency = naturalFreq;
     
     // Add tidal modulation to simulate real oceanographic conditions
     // User-controllable lunar frequency (200 µHz to 0.1 Hz)
@@ -271,12 +275,16 @@ function drawInfo() {
     
     // Display information
     const vcoOutput = pll.getVCOOutput();
-    text(`Pendulum Freq: ${pendulumParams.frequency.toFixed(3)} Hz`, 20, 20);
+    const naturalFreq = getNaturalFrequency();
+    const currentAmp = getCurrentAmplitude();
+    
+    text(`Natural Freq: ${naturalFreq.toFixed(3)} Hz`, 20, 20);
     text(`VCO Freq: ${vcoOutput.frequency.toFixed(3)} Hz`, 20, 40);
     text(`Phase Error: ${(pll.phaseError * 180 / PI).toFixed(2)}°`, 20, 60);
     text(`Lock Status: ${pll.isLocked ? 'LOCKED' : 'ACQUIRING'}`, 20, 80);
     text(`Q Factor: ${pendulumParams.qFactor.toExponential(1)}`, 20, 100);
     text(`Length: ${pendulumParams.lengthCm} cm | Mass: ${pendulumParams.mass.toFixed(1)} kg`, 20, 120);
+    text(`Amplitude: ${currentAmp.toFixed(2)}°`, 20, 140);
     if (pendulumParams.energyImpulse > 0) {
         // Format energy display with appropriate units
         let energyText;
@@ -296,7 +304,7 @@ function drawInfo() {
     const lockStatus = pll.getLockStatus();
     const lockQuality = lockStatus.lockQuality;
     
-    const lockBarY = pendulumParams.energyImpulse > 0 ? 155 : 135;
+    const lockBarY = pendulumParams.energyImpulse > 0 ? 175 : 155;
     fill(200);
     rect(20, lockBarY, 210, 15, 3);
     
@@ -410,12 +418,19 @@ function togglePause() {
 }
 
 // Update parameters from UI
-function updatePendulumFrequency(freq) {
-    pendulumParams.frequency = freq;
+// Frequency is now calculated from length, not user-controlled
+function getNaturalFrequency() {
+    const g = 9.81;
+    const lengthM = pendulumParams.lengthCm / 100;
+    return Math.sqrt(g / lengthM) / (2 * Math.PI);
 }
 
-function updatePendulumAmplitude(amp) {
-    pendulumParams.amplitude = amp;
+// Amplitude is now a result, not a control parameter
+function getCurrentAmplitude() {
+    // Find maximum angle from recent history
+    if (signalHistory.length === 0) return 0.01;
+    const maxAngle = Math.max(...signalHistory.map(Math.abs));
+    return degrees(maxAngle);
 }
 
 function updateQFactor(q) {

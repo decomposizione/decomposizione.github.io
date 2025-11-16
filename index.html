@@ -24,22 +24,20 @@
             <aside class="controls-panel">
                 <h2 id="controls-title">Controls</h2>
                 
-                <div class="control-group">
-                    <label for="pendulum-freq" id="label-freq">
-                        Pendulum Frequency (Hz)
-                        <span class="info-icon" title="Natural frequency of the pendulum">ⓘ</span>
+                <div class="control-group info-display">
+                    <label id="label-freq-display">
+                        Natural Frequency (Hz)
+                        <span class="info-icon" title="Calculated from pendulum length: f = √(g/L)/(2π)">ⓘ</span>
                     </label>
-                    <input type="range" id="pendulum-freq" min="0.5" max="2.0" step="0.01" value="1.0">
-                    <span id="value-freq" class="value-display">1.00 Hz</span>
+                    <span id="value-freq-display" class="value-display-readonly">0.407 Hz</span>
                 </div>
 
-                <div class="control-group">
-                    <label for="pendulum-amplitude" id="label-amplitude">
-                        Amplitude (degrees)
-                        <span class="info-icon" title="Maximum swing angle">ⓘ</span>
+                <div class="control-group info-display">
+                    <label id="label-amplitude-display">
+                        Current Amplitude (degrees)
+                        <span class="info-icon" title="Resulting amplitude from energy impulse and Q factor">ⓘ</span>
                     </label>
-                    <input type="range" id="pendulum-amplitude" min="10" max="80" step="1" value="45">
-                    <span id="value-amplitude" class="value-display">45</span>
+                    <span id="value-amplitude-display" class="value-display-readonly">0.01°</span>
                 </div>
 
                 <div class="control-group">

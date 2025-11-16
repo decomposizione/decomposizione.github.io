@@ -7,8 +7,8 @@ const translations = {
         
         // Controls
         controlsTitle: "Controls",
-        labelFreq: "Pendulum Frequency (Hz)",
-        labelAmplitude: "Amplitude (degrees)",
+        labelFreqDisplay: "Natural Frequency (Hz)",
+        labelAmplitudeDisplay: "Current Amplitude (degrees)",
         labelGain: "PLL Loop Gain",
         labelQ: "Quality Factor Q",
         labelVco: "VCO Initial Frequency",
@@ -20,8 +20,8 @@ const translations = {
         labelEnergy: "Energy Impulse at Zero (J)",
         
         // Tooltips
-        tooltipFreq: "Natural frequency of the pendulum oscillation",
-        tooltipAmplitude: "Maximum swing angle",
+        tooltipFreqDisplay: "Calculated from pendulum length: f = √(g/L)/(2π). Not user-controllable.",
+        tooltipAmplitudeDisplay: "Resulting amplitude from energy impulse and Q factor. Not user-controllable.",
         tooltipGain: "How fast the PLL locks to the signal",
         tooltipQ: "Oscillator quality factor (higher = less damping, longer oscillations)",
         tooltipVco: "Starting frequency of the Voltage Controlled Oscillator",
@@ -86,8 +86,8 @@ const translations = {
         
         // Controls
         controlsTitle: "Controlli",
-        labelFreq: "Frequenza del Pendolo (Hz)",
-        labelAmplitude: "Ampiezza (gradi)",
+        labelFreqDisplay: "Frequenza Naturale (Hz)",
+        labelAmplitudeDisplay: "Ampiezza Corrente (gradi)",
         labelGain: "Guadagno del Loop PLL",
         labelQ: "Fattore di Qualità Q",
         labelVco: "Frequenza Iniziale VCO",
@@ -99,8 +99,8 @@ const translations = {
         labelEnergy: "Impulso Energia allo Zero (J)",
         
         // Tooltips
-        tooltipFreq: "Frequenza naturale dell'oscillazione del pendolo",
-        tooltipAmplitude: "Angolo massimo di oscillazione",
+        tooltipFreqDisplay: "Calcolata dalla lunghezza del pendolo: f = √(g/L)/(2π). Non controllabile dall'utente.",
+        tooltipAmplitudeDisplay: "Ampiezza risultante dall'impulso di energia e dal fattore Q. Non controllabile dall'utente.",
         tooltipGain: "Velocità con cui il PLL si aggancia al segnale",
         tooltipQ: "Fattore di qualità dell'oscillatore (più alto = meno smorzamento, oscillazioni più lunghe)",
         tooltipVco: "Frequenza di partenza dell'Oscillatore Controllato in Tensione",
@@ -189,9 +189,24 @@ function applyTranslations() {
     document.getElementById('main-title').textContent = t.mainTitle;
     document.getElementById('controls-title').textContent = t.controlsTitle;
     
-    // Labels
-    updateLabelText('label-freq', t.labelFreq, t.tooltipFreq);
-    updateLabelText('label-amplitude', t.labelAmplitude, t.tooltipAmplitude);
+    // Display-only labels (frequency and amplitude are calculated, not controlled)
+    const freqDisplayLabel = document.getElementById('label-freq-display');
+    if (freqDisplayLabel) {
+        const labelText = freqDisplayLabel.childNodes[0];
+        if (labelText) labelText.textContent = t.labelFreqDisplay + ' ';
+        const infoIcon = freqDisplayLabel.querySelector('.info-icon');
+        if (infoIcon) infoIcon.title = t.tooltipFreqDisplay;
+    }
+    
+    const ampDisplayLabel = document.getElementById('label-amplitude-display');
+    if (ampDisplayLabel) {
+        const labelText = ampDisplayLabel.childNodes[0];
+        if (labelText) labelText.textContent = t.labelAmplitudeDisplay + ' ';
+        const infoIcon = ampDisplayLabel.querySelector('.info-icon');
+        if (infoIcon) infoIcon.title = t.tooltipAmplitudeDisplay;
+    }
+    
+    // Control labels
     updateLabelText('label-gain', t.labelGain, t.tooltipGain);
     updateLabelText('label-q', t.labelQ, t.tooltipQ);
     updateLabelText('label-vco', t.labelVco, t.tooltipVco);

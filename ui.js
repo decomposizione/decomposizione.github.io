@@ -8,28 +8,46 @@ function initUI() {
     initializeGraphs();
 }
 
+// Update display-only values (frequency and amplitude)
+function updateDisplayValues() {
+    if (typeof window !== 'undefined' && window.pendulumParams) {
+        const params = window.pendulumParams;
+        
+        // Calculate natural frequency from length
+        const g = 9.81;
+        const lengthM = params.lengthCm / 100;
+        const naturalFreq = Math.sqrt(g / lengthM) / (2 * Math.PI);
+        
+        // Update frequency display
+        const freqDisplay = document.getElementById('value-freq-display');
+        if (freqDisplay) {
+            freqDisplay.textContent = naturalFreq.toFixed(3) + ' Hz';
+        }
+        
+        // Update amplitude display (will be updated continuously in animation loop)
+        updateAmplitudeDisplay();
+    }
+}
+
+// Update amplitude display from current pendulum state
+function updateAmplitudeDisplay() {
+    if (typeof window !== 'undefined' && window.pendulumParams) {
+        // Get current amplitude from signal history if available
+        // This will be updated by the animation loop
+        const ampDisplay = document.getElementById('value-amplitude-display');
+        if (ampDisplay && typeof getPLLData === 'function') {
+            const data = getPLLData();
+            if (data.signal && data.signal.length > 0) {
+                const maxAngle = Math.max(...data.signal.map(Math.abs));
+                const ampDegrees = maxAngle * 180 / Math.PI;
+                ampDisplay.textContent = ampDegrees.toFixed(2) + '°';
+            }
+        }
+    }
+}
+
 // Setup all slider controls
 function setupSliders() {
-    // Pendulum Frequency Slider
-    const freqSlider = document.getElementById('pendulum-freq');
-    const freqValue = document.getElementById('value-freq');
-    
-    freqSlider.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        freqValue.textContent = value.toFixed(2) + ' Hz';
-        updatePendulumFrequency(value);
-    });
-    
-    // Pendulum Amplitude Slider
-    const ampSlider = document.getElementById('pendulum-amplitude');
-    const ampValue = document.getElementById('value-amplitude');
-    
-    ampSlider.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        ampValue.textContent = value;
-        updatePendulumAmplitude(value);
-    });
-    
     // PLL Loop Gain Slider
     const gainSlider = document.getElementById('pll-gain');
     const gainValue = document.getElementById('value-gain');
@@ -155,6 +173,10 @@ function setupSliders() {
         
         updateEnergyImpulse(energyJ);
     });
+    
+    // Update display values periodically
+    setInterval(updateDisplayValues, 100); // Update every 100ms
+    setInterval(updateAmplitudeDisplay, 50); // Update amplitude more frequently
 }
 
 // Setup button controls
