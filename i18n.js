@@ -55,25 +55,36 @@ const translations = {
         infoContent: `
             <p>
                 A Phase-Locked Loop (PLL) is a control system that generates an output signal whose phase is related to the phase of an input signal. 
-                In this simulation, the pendulum represents a natural oscillator (like tidal forces), and the PLL attempts to lock onto its frequency.
+                In this simulation, the pendulum represents a natural oscillator whose frequency is modulated by tidal forces, and the PLL tracks these variations.
             </p>
             <h3>How it works:</h3>
             <ul>
-                <li><strong>Phase Detector:</strong> Compares the pendulum's phase with the VCO output</li>
-                <li><strong>Loop Filter:</strong> Smooths the phase error signal</li>
-                <li><strong>VCO (Voltage Controlled Oscillator):</strong> Adjusts its frequency based on the filtered error</li>
+                <li><strong>Phase Detector:</strong> Compares the pendulum's phase with the VCO output, generating a phase error signal</li>
+                <li><strong>Loop Filter (PI Controller):</strong> Smooths and integrates the phase error to provide stable control</li>
+                <li><strong>VCO (Voltage Controlled Oscillator):</strong> Adjusts its frequency based on the filtered error, attempting to match the input frequency</li>
             </ul>
-            <h3>Application to Tidal Analysis:</h3>
+            <h3>Tidal Frequency Components:</h3>
             <p>
-                Tidal frequencies are extremely stable and can be measured using PLL techniques. The main tidal constituents 
-                (M2, S2, K1, O1) have known periods, and PLLs can extract these specific frequency components from noisy tidal gauge data.
-                The semidiurnal lunar tide (M2) has a period of approximately 12.42 hours, making it ideal for PLL-based analysis.
+                Ocean tides are the result of gravitational forces from the Moon and Sun. The four main tidal constituents are:
+            </p>
+            <ul>
+                <li><strong>M2 (22.344 µHz, 12.42h):</strong> Principal lunar semidiurnal - the strongest tidal component, caused by the Moon. Creates two high tides per day.</li>
+                <li><strong>S2 (23.148 µHz, 12.00h):</strong> Principal solar semidiurnal - caused by the Sun, about 46% of M2's amplitude.</li>
+                <li><strong>K1 (11.607 µHz, 23.93h):</strong> Lunisolar diurnal - combined Moon-Sun effect, one cycle per day.</li>
+                <li><strong>O1 (11.381 µHz, 25.82h):</strong> Lunar diurnal - lunar effect with one cycle per day.</li>
+            </ul>
+            <p>
+                When M2 and S2 are in phase (full/new moon), you get <strong>spring tides</strong> (highest). When in opposition (quarter moon), you get <strong>neap tides</strong> (lowest).
             </p>
             <h3>Understanding the Simulation:</h3>
             <p>
-                The pendulum oscillates at a frequency analogous to tidal cycles (scaled to cycles per day for visualization).
-                The PLL attempts to track this frequency, demonstrating how real-time frequency measurement systems work.
-                When the PLL is "locked," the phase error stabilizes near zero, and the VCO frequency matches the pendulum frequency.
+                The pendulum's natural frequency is modulated by tidal-like forces at M2, S2, and K1 frequencies. 
+                The PLL tracks the pendulum's period variations, which are sampled at each zero crossing (when the electromagnet provides an energy impulse).
+                The FFT analyzes these period deviations to extract the tidal frequency components and their phases.
+            </p>
+            <p>
+                The <strong>spectrum</strong> shows the power of each tidal component, while the <strong>phase</strong> reveals the timing relationships between them - 
+                crucial information for understanding tidal dynamics and predicting high/low tide times.
             </p>
         `,
         
@@ -135,28 +146,37 @@ const translations = {
         infoContent: `
             <p>
                 Un Phase-Locked Loop (PLL) è un sistema di controllo che genera un segnale di uscita la cui fase è correlata 
-                alla fase di un segnale di ingresso. In questa simulazione, il pendolo rappresenta un oscillatore naturale 
-                (come le forze mareali), e il PLL cerca di agganciarsi alla sua frequenza.
+                alla fase di un segnale di ingresso. In questa simulazione, il pendolo rappresenta un oscillatore naturale la cui frequenza 
+                è modulata da forze mareali, e il PLL traccia queste variazioni.
             </p>
             <h3>Come funziona:</h3>
             <ul>
-                <li><strong>Rilevatore di Fase:</strong> Confronta la fase del pendolo con l'uscita del VCO</li>
-                <li><strong>Filtro di Loop:</strong> Leviga il segnale di errore di fase</li>
-                <li><strong>VCO (Oscillatore Controllato in Tensione):</strong> Regola la sua frequenza in base all'errore filtrato</li>
+                <li><strong>Rilevatore di Fase:</strong> Confronta la fase del pendolo con l'uscita del VCO, generando un segnale di errore di fase</li>
+                <li><strong>Filtro di Loop (Controllore PI):</strong> Leviga e integra l'errore di fase per fornire un controllo stabile</li>
+                <li><strong>VCO (Oscillatore Controllato in Tensione):</strong> Regola la sua frequenza in base all'errore filtrato, cercando di eguagliare la frequenza di ingresso</li>
             </ul>
-            <h3>Applicazione all'Analisi Mareale:</h3>
+            <h3>Componenti Mareali Principali:</h3>
             <p>
-                Le frequenze mareali sono estremamente stabili e possono essere misurate usando tecniche PLL. Le principali 
-                componenti mareali (M2, S2, K1, O1) hanno periodi noti, e i PLL possono estrarre queste specifiche componenti 
-                di frequenza dai dati rumorosi dei mareografi. La marea lunare semidiurna (M2) ha un periodo di circa 12.42 ore, 
-                rendendola ideale per l'analisi basata su PLL.
+                Le maree oceaniche sono il risultato delle forze gravitazionali della Luna e del Sole. Le quattro componenti mareali principali sono:
+            </p>
+            <ul>
+                <li><strong>M2 (22.344 µHz, 12.42h):</strong> Marea lunare semidiurna principale - la componente più forte, causata dalla Luna. Crea due alte maree al giorno.</li>
+                <li><strong>S2 (23.148 µHz, 12.00h):</strong> Marea solare semidiurna principale - causata dal Sole, circa il 46% dell'ampiezza di M2.</li>
+                <li><strong>K1 (11.607 µHz, 23.93h):</strong> Marea diurna lunisolre - effetto combinato Luna-Sole, un ciclo al giorno.</li>
+                <li><strong>O1 (11.381 µHz, 25.82h):</strong> Marea diurna lunare - effetto lunare con un ciclo al giorno.</li>
+            </ul>
+            <p>
+                Quando M2 e S2 sono in fase (luna piena/nuova), si hanno le <strong>maree sigiziali</strong> (le più alte). Quando sono in opposizione (quarti di luna), si hanno le <strong>maree di quadratura</strong> (le più basse).
             </p>
             <h3>Comprendere la Simulazione:</h3>
             <p>
-                Il pendolo oscilla a una frequenza analoga ai cicli di marea (scalata in cicli per giorno per la visualizzazione).
-                Il PLL tenta di tracciare questa frequenza, dimostrando come funzionano i sistemi di misurazione della frequenza in tempo reale.
-                Quando il PLL è "agganciato", l'errore di fase si stabilizza vicino allo zero, e la frequenza del VCO corrisponde 
-                alla frequenza del pendolo.
+                La frequenza naturale del pendolo è modulata da forze simil-mareali alle frequenze M2, S2 e K1. 
+                Il PLL traccia le variazioni del periodo del pendolo, che vengono campionate ad ogni passaggio per lo zero (quando l'elettromagnete fornisce un impulso di energia).
+                La FFT analizza queste deviazioni di periodo per estrarre le componenti di frequenza mareale e le loro fasi.
+            </p>
+            <p>
+                Lo <strong>spettro</strong> mostra la potenza di ciascuna componente mareale, mentre la <strong>fase</strong> rivela le relazioni temporali tra di esse - 
+                informazioni cruciali per comprendere le dinamiche delle maree e prevedere i tempi di alta/bassa marea.
             </p>
         `,
         

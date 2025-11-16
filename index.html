@@ -261,79 +261,122 @@
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="tidal-mod-title">2. Tidal Modulation</h4>
+                    <h4 id="tidal-mod-title">2. Tidal Modulation of Natural Frequency</h4>
                     <div class="formula-box">
                         <p class="formula">
-                            ω(t) = ω₀ [1 + Σ A_i sin(2πf_tidal,i · t)]
+                            ω(t) = ω₀ · [1 + A_M2·sin(2πf_M2·t) + A_S2·sin(2πf_S2·t) + A_K1·sin(2πf_K1·t)]
                         </p>
                         <p class="formula-desc" id="tidal-desc">
-                            Frequency modulated by tidal components: M2 (22.34 µHz), S2 (23.15 µHz), K1 (11.61 µHz), O1 (11.38 µHz)
+                            Natural frequency modulated by tidal components: M2 (22.344 µHz, A=0.02), S2 (23.148 µHz, A=0.015), K1 (11.607 µHz, A=0.01).
+                            This simulates how tidal gravitational forces would affect a high-precision oscillator.
                         </p>
                     </div>
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="phase-det-title">3. Phase Detector</h4>
+                    <h4 id="energy-impulse-title">3. Energy Impulse at Zero Crossing</h4>
                     <div class="formula-box">
                         <p class="formula">
-                            ε(t) = θ_in(t) - θ_out(t)  [wrapped to [-π, π]]
+                            E_new = E_kinetic + E_impulse,  &nbsp;&nbsp;  ω_new = √(2E_new/I)
                         </p>
-                        <p class="formula-desc" id="phase-det-desc">
-                            Measures phase difference between input and VCO output
+                        <p class="formula-desc" id="energy-desc">
+                            At each zero crossing, an electromagnet adds energy E_impulse to maintain oscillation (PLL feedback).
+                            I = mL² is the moment of inertia. The period T between zero crossings measures the instantaneous frequency.
                         </p>
                     </div>
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="loop-filter-title">4. Loop Filter (PI Controller)</h4>
+                    <h4 id="phase-det-title">4. Phase Detector</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            ε(t) = θ_in(t) - θ_out(t)  &nbsp;&nbsp; [wrapped to [-π, π]]
+                        </p>
+                        <p class="formula-desc" id="phase-det-desc">
+                            Measures phase difference between pendulum (input) and VCO output. This error signal drives the feedback loop.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="loop-filter-title">5. Loop Filter (PI Controller)</h4>
                     <div class="formula-box">
                         <p class="formula">
                             v_c(t) = K_p · ε(t) + K_i · ∫ε(τ)dτ
                         </p>
                         <p class="formula-desc" id="loop-filter-desc">
-                            K_p = loop gain (proportional), K_i = integral gain. Provides Type-2 loop for zero steady-state error.
+                            Proportional-Integral controller: K_p provides fast response, K_i eliminates steady-state error.
+                            This is a Type-2 loop ensuring zero phase error at lock.
                         </p>
                     </div>
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="vco-title">5. Voltage Controlled Oscillator</h4>
+                    <h4 id="vco-title">6. Voltage Controlled Oscillator</h4>
                     <div class="formula-box">
                         <p class="formula">
                             dθ_out/dt = ω₀ + K_VCO · v_c(t)
                         </p>
                         <p class="formula-desc" id="vco-desc">
-                            VCO frequency adjusts based on control voltage. K_VCO is the VCO gain (Hz/V).
+                            VCO frequency adjusts proportionally to control voltage. K_VCO is the VCO gain (rad/s per control unit).
                         </p>
                     </div>
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="lock-condition-title">6. Lock Condition</h4>
+                    <h4 id="period-sampling-title">7. Period Sampling and FFT Analysis</h4>
                     <div class="formula-box">
                         <p class="formula">
-                            |ε(t)| &lt; ε_threshold  for  t &gt; t_lock
+                            T_measured = t_n - t_{n-1},  &nbsp;&nbsp;  Δ(t_n) = (T_measured - T_natural)/T_natural
+                        </p>
+                        <p class="formula-desc" id="period-desc">
+                            Period measured at each zero crossing. The normalized period deviation Δ(t_n) is stored and analyzed via FFT
+                            to extract tidal frequency components (M2, S2, K1, O1) and their phases.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="fft-analysis-title">8. FFT Spectral Analysis</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            X(f) = Σ Δ(t_n) · e^(-j2πfn/fs),  &nbsp;&nbsp;  |X(f)| = √(Re² + Im²),  &nbsp;&nbsp;  φ(f) = atan2(Im, Re)
+                        </p>
+                        <p class="formula-desc" id="fft-desc">
+                            65536-point FFT analyzes period deviations. Magnitude |X(f)| shows power at each frequency (spectrum),
+                            phase φ(f) reveals timing relationships between tidal components. Hanning window applied before FFT.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="lock-condition-title">9. Lock Condition</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            |ε(t)| &lt; ε_threshold  &nbsp;&nbsp; for &nbsp;&nbsp; t &gt; t_lock
                         </p>
                         <p class="formula-desc" id="lock-desc">
-                            PLL is considered locked when phase error remains below threshold (0.3 rad) for sufficient time.
+                            PLL is locked when phase error stays below threshold (0.3 rad) for sufficient time.
+                            At lock, VCO frequency tracks the modulated pendulum frequency.
                         </p>
                     </div>
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="quality-factor-title">7. Quality Factor</h4>
+                    <h4 id="quality-factor-title">10. Quality Factor</h4>
                     <div class="formula-box">
                         <p class="formula">
-                            Q = ω₀/(2ζω₀) = 1/(2ζ) = f₀/Δf
+                            Q = ω₀/(2ζω₀) = 1/(2ζ) = f₀/Δf &nbsp;&nbsp; → &nbsp;&nbsp; ζ = 1/(2Q)
                         </p>
                         <p class="formula-desc" id="quality-desc">
-                            Higher Q means lower damping and longer oscillations. For tidal measurements, Q can be 10⁶ or higher.
+                            Q determines damping: higher Q = less damping = longer oscillations. 
+                            For tidal gravimeters, Q ≥ 10⁶. Simulation uses Q = 10³-10⁷ range.
                         </p>
                     </div>
                 </div>
 
                 <div class="formula-group">
-                    <h4 id="tidal-freqs-title">8. Tidal Frequencies</h4>
+                    <h4 id="tidal-freqs-title">11. Tidal Frequency Components</h4>
                     <div class="formula-box">
                         <table class="tidal-table">
                             <tr>
