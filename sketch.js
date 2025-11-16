@@ -20,6 +20,7 @@ let pendulumParams = {
 
 // Track zero crossings for energy impulse
 let lastAngleSign = 0;
+let lastZeroCrossingTime = 0; // Track time of last zero crossing for period measurement
 
 // PLL parameters
 let pllParams = {
@@ -46,8 +47,8 @@ const maxSignalHistory = 512; // Power of 2 for high-freq FFT
 // Long-term signal history for tidal frequency analysis
 let tidalSignalHistory = [];
 const maxTidalHistory = 65536; // Buffer size: 65536 samples
-let tidalSampleCounter = 0;
-const tidalSampleRate = 10; // Sample every N frames for tidal analysis
+// Sampling happens at zero crossings (when electromagnet impulse is applied)
+// This is the PLL feedback - the time between impulses is the sampling period
 const tidalUpdateInterval = 64; // Update spectrum every 64 samples for FFT
 
 // p5.js setup function
@@ -141,7 +142,36 @@ function updatePendulum() {
     // Check for zero crossing and apply energy impulse
     const currentAngleSign = Math.sign(pendulumAngle);
     if (lastAngleSign !== 0 && currentAngleSign !== 0 && lastAngleSign !== currentAngleSign) {
-        // Zero crossing detected! Apply energy impulse
+        // Zero crossing detected! This is when the electromagnet applies the impulse (PLL feedback)
+        
+        // Calculate period since last zero crossing (this is the sampling period)
+        let period = 0;
+        if (lastZeroCrossingTime > 0) {
+            period = pendulumTime - lastZeroCrossingTime;
+        } else {
+            // First zero crossing - estimate period from natural frequency
+            const naturalFreq = getNaturalFrequency();
+            period = 1.0 / naturalFreq;
+        }
+        lastZeroCrossingTime = pendulumTime;
+        
+        // Sample for tidal frequency analysis
+        // The period between zero crossings reflects the modulated frequency
+        // We store the period deviation from the natural period
+        const naturalFreq = getNaturalFrequency();
+        const naturalPeriod = 1.0 / naturalFreq;
+        const periodDeviation = (period - naturalPeriod) / naturalPeriod;
+        
+        // Store the period deviation (normalized)
+        // This captures how tidal modulation affects the pendulum period
+        tidalSignalHistory.push(periodDeviation);
+        
+        // Maintain buffer at exactly 65536 samples (circular buffer)
+        if (tidalSignalHistory.length > maxTidalHistory) {
+            tidalSignalHistory.shift();
+        }
+        
+        // Apply energy impulse (PLL feedback)
         if (pendulumParams.energyImpulse > 0) {
             // Convert energy to velocity change
             // E = 0.5 * m * v², so Δv = √(2E/m)
@@ -163,36 +193,6 @@ function updatePendulum() {
     signalHistory.push(pendulumAngle);
     if (signalHistory.length > maxSignalHistory) {
         signalHistory.shift();
-    }
-    
-    // Store signal for tidal-frequency FFT (decimated for long-term analysis)
-    tidalSampleCounter++;
-    if (tidalSampleCounter >= tidalSampleRate) {
-        tidalSampleCounter = 0;
-        // Store the modulated frequency component (tidal modulation effect)
-        // This captures the frequency modulation due to tidal forces
-        const g = 9.81;
-        const lengthM = pendulumParams.lengthCm / 100;
-        const omega0_base = Math.sqrt(g / lengthM);
-        const currentOmega = 2 * Math.PI * pendulumParams.frequency;
-        
-        // Calculate frequency deviation from modulation
-        // The tidal modulation affects omega0, so we track the deviation
-        const tidalM2_freq = pendulumParams.lunarFreq;
-        const tidalS2_freq = 23.148e-6 * simulationTimeScale;
-        const tidalK1_freq = 11.607e-6 * simulationTimeScale;
-        
-        const tidalModulation = 
-            0.02 * Math.sin(2 * Math.PI * tidalM2_freq * pendulumTime) +
-            0.015 * Math.sin(2 * Math.PI * tidalS2_freq * pendulumTime) +
-            0.01 * Math.sin(2 * Math.PI * tidalK1_freq * pendulumTime);
-        
-        // Store the modulation component (this is what we want to see in spectrum)
-        tidalSignalHistory.push(tidalModulation);
-        // Maintain buffer at exactly 1024 samples (circular buffer)
-        if (tidalSignalHistory.length > maxTidalHistory) {
-            tidalSignalHistory.shift();
-        }
     }
     
     // Update time
@@ -366,6 +366,7 @@ function resetPendulum() {
     pendulumVelocity = 0;
     pendulumTime = 0;
     lastAngleSign = Math.sign(pendulumAngle); // Initialize with current angle sign
+    lastZeroCrossingTime = 0; // Reset zero crossing time tracker
     
     // Apply initial energy impulse if enabled
     if (pendulumParams.energyImpulse > 0) {

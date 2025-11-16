@@ -669,8 +669,17 @@ function drawTidalSpectrum(ctx, signal) {
     }
     
     // Sampling parameters for tidal signal
-    const dt = 0.016 * 10; // Decimated by factor of 10
-    const fs = 1 / dt; // Effective sampling frequency
+    // Sampling happens at zero crossings (when electromagnet impulse is applied)
+    // The sampling frequency is the natural frequency of the pendulum
+    // Get natural frequency from pendulum parameters
+    let naturalFreq = 0.4; // Default fallback
+    if (typeof window !== 'undefined' && window.pendulumParams) {
+        const params = window.pendulumParams;
+        const g = 9.81;
+        const lengthM = params.lengthCm / 100;
+        naturalFreq = Math.sqrt(g / lengthM) / (2 * Math.PI);
+    }
+    const fs = naturalFreq; // Sampling frequency = pendulum natural frequency (samples per second of simulation time)
     
     // Tidal frequency range (in Hz)
     const simulationTimeScale = 1000; // Must match the scale in sketch.js
