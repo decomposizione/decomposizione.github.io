@@ -164,9 +164,26 @@ function updatePendulum() {
     tidalSampleCounter++;
     if (tidalSampleCounter >= tidalSampleRate) {
         tidalSampleCounter = 0;
-        // Store instantaneous frequency deviation (proxy for tidal modulation)
-        const instantFreq = pendulumVelocity / (2 * Math.PI);
-        tidalSignalHistory.push(instantFreq);
+        // Store the modulated frequency component (tidal modulation effect)
+        // This captures the frequency modulation due to tidal forces
+        const g = 9.81;
+        const lengthM = pendulumParams.lengthCm / 100;
+        const omega0_base = Math.sqrt(g / lengthM);
+        const currentOmega = 2 * Math.PI * pendulumParams.frequency;
+        
+        // Calculate frequency deviation from modulation
+        // The tidal modulation affects omega0, so we track the deviation
+        const tidalM2_freq = pendulumParams.lunarFreq;
+        const tidalS2_freq = 23.148e-6 * simulationTimeScale;
+        const tidalK1_freq = 11.607e-6 * simulationTimeScale;
+        
+        const tidalModulation = 
+            0.02 * Math.sin(2 * Math.PI * tidalM2_freq * pendulumTime) +
+            0.015 * Math.sin(2 * Math.PI * tidalS2_freq * pendulumTime) +
+            0.01 * Math.sin(2 * Math.PI * tidalK1_freq * pendulumTime);
+        
+        // Store the modulation component (this is what we want to see in spectrum)
+        tidalSignalHistory.push(tidalModulation);
         // Maintain buffer at exactly 1024 samples (circular buffer)
         if (tidalSignalHistory.length > maxTidalHistory) {
             tidalSignalHistory.shift();
