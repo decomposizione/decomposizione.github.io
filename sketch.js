@@ -14,7 +14,7 @@ let pendulumParams = {
     length: 150,         // visual length in pixels
     lengthCm: 150,       // physical length in cm
     mass: 1.0,           // mass in kg
-    energyImpulse: 10e-9,  // energy impulse in Joules when passing zero (default: 10 nJ)
+    energyImpulse: 0.1,  // energy impulse in Joules when passing zero (default: 100 mJ)
     lunarFreq: 22.344e-6 // Lunar/tidal modulation frequency (Hz)
 };
 
@@ -45,7 +45,7 @@ const maxSignalHistory = 512; // Power of 2 for high-freq FFT
 
 // Long-term signal history for tidal frequency analysis
 let tidalSignalHistory = [];
-const maxTidalHistory = 1024; // Buffer size: 1024 samples
+const maxTidalHistory = 65536; // Buffer size: 65536 samples
 let tidalSampleCounter = 0;
 const tidalSampleRate = 10; // Sample every N frames for tidal analysis
 const tidalUpdateInterval = 64; // Update spectrum every 64 samples for FFT

@@ -615,23 +615,24 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
     
-    // Update every 64 samples, but use buffer of 1024 samples
+    // Update every 64 samples, but use buffer of 65536 samples
     if (signal.length < 64) {
         ctx.fillStyle = '#7f8c8d';
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Accumulating data for tidal analysis...', width / 2, height / 2);
         ctx.font = '12px sans-serif';
-        ctx.fillText(`${signal.length} / 64 samples (updates every 64, buffer: 1024)`, width / 2, height / 2 + 20);
+        ctx.fillText(`${signal.length} / 64 samples (updates every 64, buffer: 65536)`, width / 2, height / 2 + 20);
         return;
     }
     
-    // Prepare signal for FFT - use up to 1024 samples from buffer
-    const n = 1024; // FFT size matching buffer size
+    // Prepare signal for FFT - use up to 65536 samples from buffer
+    // Use largest power of 2 that fits: 65536 = 2^16
+    const n = 65536; // FFT size matching buffer size
     const real = new Array(n).fill(0);
     const imag = new Array(n).fill(0);
     
-    // Apply Hanning window and copy signal (use most recent 1024 samples)
+    // Apply Hanning window and copy signal (use most recent 65536 samples)
     const signalLength = signal.length;
     const actualLength = Math.min(signalLength, n);
     
@@ -774,8 +775,8 @@ function drawTidalSpectrum(ctx, signal) {
     // Show buffer status
     ctx.font = '10px sans-serif';
     ctx.fillStyle = '#7f8c8d';
-    const bufferStatus = signal.length >= 1024 ? 'Buffer: 1024/1024 (full)' : `Buffer: ${signal.length}/1024`;
-    ctx.fillText(bufferStatus, width - 150, 15);
+    const bufferStatus = signal.length >= 65536 ? 'Buffer: 65536/65536 (full)' : `Buffer: ${signal.length}/65536`;
+    ctx.fillText(bufferStatus, width - 180, 15);
     
     // Axes
     ctx.strokeStyle = '#2c3e50';
