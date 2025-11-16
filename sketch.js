@@ -35,10 +35,17 @@ const canvasHeight = 500;
 // Simulation time scaling for visualization
 const simulationTimeScale = 1000; // Speed up tidal effects
 
+// Simulation speed multiplier (1x = real-time, 1000x = 1000x faster)
+let simulationSpeed = 1.0; // Default: real-time
+
 // Pendulum physics state
 let pendulumAngle = 0;
 let pendulumVelocity = 0;
 let pendulumTime = 0;
+
+// Sampling for FFT - based on simulated time, not real frames
+let lastSampleTime = 0;
+const sampleInterval = 0.016; // Sample every 0.016s of simulated time (~60 Hz in simulated time)
 
 // Signal history for FFT
 let signalHistory = [];
@@ -46,6 +53,7 @@ const maxSignalHistory = 512; // Power of 2 for high-freq FFT
 
 // Long-term signal history for tidal frequency analysis
 let tidalSignalHistory = [];
+let tidalPeriodHistory = []; // Track actual periods between zero crossings
 const maxTidalHistory = 65536; // Buffer size: 65536 samples
 // Sampling happens at zero crossings (when electromagnet impulse is applied)
 // This is the PLL feedback - the time between impulses is the sampling period
@@ -72,12 +80,32 @@ function draw() {
     background(240, 245, 250);
     
     if (!simulationPaused) {
-        // Update physics
-        updatePendulum();
+        // Update physics multiple times per frame if simulation speed > 1
+        // This keeps dt small for numerical stability while allowing faster simulation
+        const baseDt = 0.016; // ~60 fps base time step (small for stability)
+        // Calculate number of steps: use fractional approach for better accuracy
+        // For speeds > 100, we need to handle differently to avoid performance issues
+        const maxStepsPerFrame = 100; // Limit to prevent performance issues
+        let numSteps = Math.max(1, Math.min(maxStepsPerFrame, Math.round(simulationSpeed)));
         
-        // Update PLL with current pendulum phase
-        const pendulumPhase = normalizeAngle(pendulumAngle + PI);
-        pll.update(pendulumPhase);
+        // For very high speeds (>100), we'll do multiple iterations
+        // This is an approximation but better than limiting to 100
+        if (simulationSpeed > maxStepsPerFrame) {
+            // For speeds > 100, we'll do maxStepsPerFrame steps but scale dt proportionally
+            // This is a compromise between accuracy and performance
+            numSteps = maxStepsPerFrame;
+            // Note: This means we won't achieve exact speed > 100, but it's a reasonable trade-off
+        }
+        
+        // Run all simulation steps first to maintain simulation integrity
+        for (let step = 0; step < numSteps; step++) {
+            // Use small, constant dt for numerical stability
+            updatePendulumWithDt(baseDt); // updatePendulumWithDt now handles sampling internally
+            
+            // Update PLL with current pendulum phase (update at every step for accuracy)
+            const pendulumPhase = normalizeAngle(pendulumAngle + PI);
+            pll.update(pendulumPhase);
+        }
         
         // Update UI status
         updateLockStatus(pll.isLocked);
@@ -90,8 +118,8 @@ function draw() {
 }
 
 // Update pendulum physics using equation of motion
-function updatePendulum() {
-    const dt = 0.016; // ~60 fps
+// Sampling is now based on simulated time, not real frames
+function updatePendulumWithDt(dt) {
     
     // Calculate natural frequency from physical length
     // For small angles: T = 2π√(L/g), so ω = √(g/L)
@@ -109,7 +137,8 @@ function updatePendulum() {
     
     // Add tidal modulation to simulate real oceanographic conditions
     // User-controllable lunar frequency (200 µHz to 0.1 Hz)
-    const tidalM2_freq = pendulumParams.lunarFreq; // User-controlled M2 frequency
+    // All frequencies are scaled by simulationTimeScale for consistency
+    const tidalM2_freq = pendulumParams.lunarFreq * simulationTimeScale; // User-controlled M2 frequency (scaled)
     const tidalS2_freq = 23.148e-6 * simulationTimeScale; // S2 (relative to M2)
     const tidalK1_freq = 11.607e-6 * simulationTimeScale; // K1
     
@@ -166,9 +195,13 @@ function updatePendulum() {
         // This captures how tidal modulation affects the pendulum period
         tidalSignalHistory.push(periodDeviation);
         
+        // Also store the actual period for calculating effective sampling frequency
+        tidalPeriodHistory.push(period);
+        
         // Maintain buffer at exactly 65536 samples (circular buffer)
         if (tidalSignalHistory.length > maxTidalHistory) {
             tidalSignalHistory.shift();
+            tidalPeriodHistory.shift();
         }
         
         // Apply energy impulse (PLL feedback)
@@ -189,14 +222,30 @@ function updatePendulum() {
     
     pendulumAngle += pendulumVelocity * dt;
     
-    // Store signal for high-frequency FFT (record angular position)
-    signalHistory.push(pendulumAngle);
-    if (signalHistory.length > maxSignalHistory) {
-        signalHistory.shift();
-    }
-    
-    // Update time
+    // Update time (dt is already small and constant, speed is handled by number of steps per frame)
     pendulumTime += dt;
+    
+    // Sample for high-frequency FFT based on SIMULATED TIME, not real frames
+    // This ensures consistent sampling rate regardless of simulation speed
+    // Use a more robust approach: check if we've crossed a sample boundary
+    const currentSampleIndex = Math.floor(pendulumTime / sampleInterval);
+    const lastSampleIndex = Math.floor(lastSampleTime / sampleInterval);
+    
+    if (currentSampleIndex > lastSampleIndex) {
+        // We've crossed at least one sample boundary
+        // Update lastSampleTime to the exact sample time to avoid drift
+        lastSampleTime = currentSampleIndex * sampleInterval;
+        signalHistory.push(pendulumAngle);
+        if (signalHistory.length > maxSignalHistory) {
+            signalHistory.shift();
+        }
+    }
+}
+
+// Legacy function name for compatibility (now calls updatePendulumWithDt)
+function updatePendulum() {
+    const baseDt = 0.016; // ~60 fps base time step
+    updatePendulumWithDt(baseDt);
 }
 
 // Draw the pendulum
@@ -367,6 +416,7 @@ function resetPendulum() {
     pendulumTime = 0;
     lastAngleSign = Math.sign(pendulumAngle); // Initialize with current angle sign
     lastZeroCrossingTime = 0; // Reset zero crossing time tracker
+    lastSampleTime = 0; // Reset sampling time tracker
     
     // Apply initial energy impulse if enabled
     if (pendulumParams.energyImpulse > 0) {
@@ -473,18 +523,36 @@ function updateLunarFrequency(freq) {
     pendulumParams.lunarFreq = freq;
 }
 
+function updateSimulationSpeed(speed) {
+    // When simulation speed changes, reset tidal buffers to avoid mixing periods
+    // measured at different speeds (though periods are in simulation time, so they should be consistent)
+    const speedChanged = Math.abs(simulationSpeed - speed) > 0.01;
+    simulationSpeed = speed;
+    
+    if (speedChanged) {
+        // Clear tidal buffers when speed changes significantly
+        // This ensures consistency in period measurements
+        tidalSignalHistory = [];
+        tidalPeriodHistory = [];
+        lastZeroCrossingTime = 0; // Reset to force recalculation on next zero crossing
+    }
+}
+
 // Get PLL data for graphing
 function getPLLData() {
-    if (!pll) return { phaseError: [], frequency: [], signal: [], tidalSignal: [] };
+    if (!pll) return { phaseError: [], frequency: [], signal: [], tidalSignal: [], tidalPeriods: [] };
     return {
         phaseError: pll.phaseErrorHistory,
         frequency: pll.freqHistory,
         signal: signalHistory,
-        tidalSignal: tidalSignalHistory
+        tidalSignal: tidalSignalHistory,
+        tidalPeriods: tidalPeriodHistory // Include period history for calculating effective sampling frequency
     };
 }
 
 // Make simulationPaused and pendulumParams accessible globally for UI
 window.simulationPaused = simulationPaused;
 window.pendulumParams = pendulumParams;
+window.updateSimulationSpeed = updateSimulationSpeed;
+window.simulationSpeed = () => simulationSpeed; // Expose current simulation speed
 

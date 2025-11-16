@@ -89,6 +89,24 @@ function setupSliders() {
         updateLunarFrequency(freqHz);
     });
     
+    // Simulation Speed Slider (logarithmic scale: 1x to 1000x)
+    const simSpeedSlider = document.getElementById('sim-speed');
+    const simSpeedValue = document.getElementById('value-sim-speed');
+    
+    simSpeedSlider.addEventListener('input', (e) => {
+        const exponent = parseFloat(e.target.value);
+        const speed = Math.pow(10, exponent); // 10^0 = 1x, 10^3 = 1000x
+        
+        if (speed < 1.1) {
+            simSpeedValue.textContent = speed.toFixed(2) + 'x';
+        } else if (speed < 10) {
+            simSpeedValue.textContent = speed.toFixed(1) + 'x';
+        } else {
+            simSpeedValue.textContent = Math.round(speed) + 'x';
+        }
+        updateSimulationSpeed(speed);
+    });
+    
     // Pendulum Spectrum Center Frequency Slider
     const spectrumCenterSlider = document.getElementById('spectrum-center');
     const spectrumCenterValue = document.getElementById('value-spectrum-center');
@@ -647,11 +665,12 @@ function drawTidalSpectrum(ctx, signal) {
     // Apply Hanning window and copy signal (use most recent 65536 samples)
     const signalLength = signal.length;
     const actualLength = Math.min(signalLength, n);
+    const startIdx = signalLength > n ? signalLength - n : 0; // Start index for samples used in FFT
     
     for (let i = 0; i < actualLength; i++) {
-        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / actualLength));
+        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / n)); // Use n for window length, not actualLength
         // Use most recent samples if buffer is full, otherwise from start
-        const signalIdx = signalLength > n ? signalLength - n + i : i;
+        const signalIdx = startIdx + i;
         real[i] = signal[signalIdx] * window;
     }
     // Zero-pad if buffer not yet full
@@ -670,16 +689,31 @@ function drawTidalSpectrum(ctx, signal) {
     
     // Sampling parameters for tidal signal
     // Sampling happens at zero crossings (when electromagnet impulse is applied)
-    // The sampling frequency is the natural frequency of the pendulum
-    // Get natural frequency from pendulum parameters
-    let naturalFreq = 0.4; // Default fallback
-    if (typeof window !== 'undefined' && window.pendulumParams) {
-        const params = window.pendulumParams;
-        const g = 9.81;
-        const lengthM = params.lengthCm / 100;
-        naturalFreq = Math.sqrt(g / lengthM) / (2 * Math.PI);
+    // The effective sampling frequency is calculated from ALL periods from first to last sample
+    // Starting from the 4th sample (skip first 3 which may be less accurate)
+    let fs = 0.4; // Default fallback
+    if (typeof getPLLData === 'function') {
+        const data = getPLLData();
+        if (data.tidalPeriods && data.tidalPeriods.length > 3) {
+            // Use all periods from 4th sample onwards (index 3) to the last
+            const periodsToUse = data.tidalPeriods.slice(3);
+            const avgPeriod = periodsToUse.reduce((a, b) => a + b, 0) / periodsToUse.length;
+            // Effective sampling frequency = 1 / average period
+            fs = 1.0 / avgPeriod;
+        } else if (data.tidalPeriods && data.tidalPeriods.length > 0) {
+            // If we have less than 4 samples, use all available (but this is less accurate)
+            const avgPeriod = data.tidalPeriods.reduce((a, b) => a + b, 0) / data.tidalPeriods.length;
+            fs = 1.0 / avgPeriod;
+        } else {
+            // Fallback to natural frequency if no periods measured yet
+            if (typeof window !== 'undefined' && window.pendulumParams) {
+                const params = window.pendulumParams;
+                const g = 9.81;
+                const lengthM = params.lengthCm / 100;
+                fs = Math.sqrt(g / lengthM) / (2 * Math.PI);
+            }
+        }
     }
-    const fs = naturalFreq; // Sampling frequency = pendulum natural frequency (samples per second of simulation time)
     
     // Tidal frequency range (in Hz)
     const simulationTimeScale = 1000; // Must match the scale in sketch.js

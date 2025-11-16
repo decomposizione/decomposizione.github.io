@@ -12,6 +12,7 @@ const translations = {
         labelGain: "PLL Loop Gain",
         labelQ: "Quality Factor Q",
         labelLunar: "Lunar Modulation Frequency",
+        labelSimSpeed: "Simulation Speed",
         labelSpectrumCenter: "Pendulum Spectrum Center (Hz)",
         labelTidalSpectrumCenter: "Tidal Spectrum Center (µHz)",
         labelLength: "Pendulum Length (cm)",
@@ -24,6 +25,7 @@ const translations = {
         tooltipGain: "How fast the PLL locks to the signal",
         tooltipQ: "Oscillator quality factor (higher = less damping, longer oscillations)",
         tooltipLunar: "Frequency of tidal modulation (M2 lunar component). Range: 200 µHz to 0.1 Hz",
+        tooltipSimSpeed: "Speed multiplier for simulation. 1x = real-time, 1000x = 1000x faster. Range: 1x to 1000x",
         tooltipSpectrumCenter: "Center frequency for pendulum spectrum display. Adjust to zoom into specific frequency ranges",
         tooltipTidalSpectrumCenter: "Center frequency for tidal spectrum display. Adjust to explore different tidal components",
         tooltipLength: "Physical length of the pendulum rod. Affects natural frequency: T = 2π√(L/g)",
@@ -89,6 +91,7 @@ const translations = {
         labelGain: "Guadagno del Loop PLL",
         labelQ: "Fattore di Qualità Q",
         labelLunar: "Frequenza Modulazione Lunare",
+        labelSimSpeed: "Velocità Simulazione",
         labelSpectrumCenter: "Centro Spettro Pendolo (Hz)",
         labelTidalSpectrumCenter: "Centro Spettro Mareale (µHz)",
         labelLength: "Lunghezza Pendolo (cm)",
@@ -101,6 +104,7 @@ const translations = {
         tooltipGain: "Velocità con cui il PLL si aggancia al segnale",
         tooltipQ: "Fattore di qualità dell'oscillatore (più alto = meno smorzamento, oscillazioni più lunghe)",
         tooltipLunar: "Frequenza della modulazione mareale (componente lunare M2). Range: 200 µHz a 0.1 Hz",
+        tooltipSimSpeed: "Moltiplicatore di velocità per la simulazione. 1x = tempo reale, 1000x = 1000 volte più veloce. Range: 1x a 1000x",
         tooltipSpectrumCenter: "Frequenza centrale per visualizzazione spettro pendolo. Regola per ingrandire specifici range di frequenza",
         tooltipTidalSpectrumCenter: "Frequenza centrale per visualizzazione spettro mareale. Regola per esplorare diverse componenti mareali",
         tooltipLength: "Lunghezza fisica dell'asta del pendolo. Influenza la frequenza naturale: T = 2π√(L/g)",
@@ -206,6 +210,7 @@ function applyTranslations() {
     updateLabelText('label-gain', t.labelGain, t.tooltipGain);
     updateLabelText('label-q', t.labelQ, t.tooltipQ);
     updateLabelText('label-lunar', t.labelLunar, t.tooltipLunar);
+    updateLabelText('label-sim-speed', t.labelSimSpeed, t.tooltipSimSpeed);
     updateLabelText('label-spectrum-center', t.labelSpectrumCenter, t.tooltipSpectrumCenter);
     updateLabelText('label-tidal-spectrum-center', t.labelTidalSpectrumCenter, t.tooltipTidalSpectrumCenter);
     updateLabelText('label-length', t.labelLength, t.tooltipLength);

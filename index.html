@@ -68,6 +68,15 @@
                 </div>
 
                 <div class="control-group">
+                    <label for="sim-speed" id="label-sim-speed">
+                        Simulation Speed
+                        <span class="info-icon" title="Speed multiplier for simulation (1x = real-time)">ⓘ</span>
+                    </label>
+                    <input type="range" id="sim-speed" min="0" max="3" step="0.01" value="0">
+                    <span id="value-sim-speed" class="value-display">1x</span>
+                </div>
+
+                <div class="control-group">
                     <label for="spectrum-center" id="label-spectrum-center">
                         Pendulum Spectrum Center (Hz)
                         <span class="info-icon" title="Center frequency for pendulum spectrum analysis">ⓘ</span>
