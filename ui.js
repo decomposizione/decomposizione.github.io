@@ -516,26 +516,35 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
     
-    // Update every 64 samples instead of waiting for 1024
+    // Update every 64 samples, but use buffer of 1024 samples
     if (signal.length < 64) {
         ctx.fillStyle = '#7f8c8d';
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Accumulating data for tidal analysis...', width / 2, height / 2);
         ctx.font = '12px sans-serif';
-        ctx.fillText(`${signal.length} / 64 samples (updates every 64)`, width / 2, height / 2 + 20);
+        ctx.fillText(`${signal.length} / 64 samples (updates every 64, buffer: 1024)`, width / 2, height / 2 + 20);
         return;
     }
     
-    // Prepare signal for FFT (use longer FFT for better frequency resolution)
-    const n = 8192; // Large FFT for micro-Hz resolution
+    // Prepare signal for FFT - use up to 1024 samples from buffer
+    const n = 1024; // FFT size matching buffer size
     const real = new Array(n).fill(0);
     const imag = new Array(n).fill(0);
     
-    // Apply Hanning window and copy signal
-    for (let i = 0; i < Math.min(signal.length, n); i++) {
-        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / n));
-        real[i] = signal[i] * window;
+    // Apply Hanning window and copy signal (use most recent 1024 samples)
+    const signalLength = signal.length;
+    const actualLength = Math.min(signalLength, n);
+    
+    for (let i = 0; i < actualLength; i++) {
+        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / actualLength));
+        // Use most recent samples if buffer is full, otherwise from start
+        const signalIdx = signalLength > n ? signalLength - n + i : i;
+        real[i] = signal[signalIdx] * window;
+    }
+    // Zero-pad if buffer not yet full
+    for (let i = actualLength; i < n; i++) {
+        real[i] = 0;
     }
     
     // Perform FFT
@@ -657,11 +666,17 @@ function drawTidalSpectrum(ctx, signal) {
         ctx.fillText('CENTER', centerX, 45);
     }
     
-    // Title
+    // Title with buffer status
     ctx.fillStyle = '#2c3e50';
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('Real tidal frequencies (M2, S2, K1, O1)', 10, 15);
+    
+    // Show buffer status
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#7f8c8d';
+    const bufferStatus = signal.length >= 1024 ? 'Buffer: 1024/1024 (full)' : `Buffer: ${signal.length}/1024`;
+    ctx.fillText(bufferStatus, width - 150, 15);
     
     // Axes
     ctx.strokeStyle = '#2c3e50';

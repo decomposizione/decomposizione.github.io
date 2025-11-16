@@ -39,9 +39,10 @@ const maxSignalHistory = 512; // Power of 2 for high-freq FFT
 
 // Long-term signal history for tidal frequency analysis
 let tidalSignalHistory = [];
-const maxTidalHistory = 8192; // Much longer history for low frequencies
+const maxTidalHistory = 1024; // Buffer size: 1024 samples
 let tidalSampleCounter = 0;
-const tidalSampleRate = 10; // Sample every N frames for tidal analysis for FFT
+const tidalSampleRate = 10; // Sample every N frames for tidal analysis
+const tidalUpdateInterval = 64; // Update spectrum every 64 samples for FFT
 
 // p5.js setup function
 function setup() {
@@ -135,6 +136,7 @@ function updatePendulum() {
         // Store instantaneous frequency deviation (proxy for tidal modulation)
         const instantFreq = pendulumVelocity / (2 * Math.PI);
         tidalSignalHistory.push(instantFreq);
+        // Maintain buffer at exactly 1024 samples (circular buffer)
         if (tidalSignalHistory.length > maxTidalHistory) {
             tidalSignalHistory.shift();
         }
