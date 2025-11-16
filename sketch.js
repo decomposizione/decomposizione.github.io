@@ -8,9 +8,9 @@ let simulationPaused = false;
 
 // Pendulum parameters
 let pendulumParams = {
-    frequency: 1.0,      // cycles per day
+    frequency: 1.0,      // Hz (oscillations per second)
     amplitude: 45,       // degrees
-    damping: 0.05,       // damping factor
+    qFactor: 1000,       // Quality factor (1e2 to 1e7)
     length: 150,         // visual length in pixels
 };
 
@@ -28,6 +28,10 @@ const canvasHeight = 500;
 let pendulumAngle = 0;
 let pendulumVelocity = 0;
 let pendulumTime = 0;
+
+// Signal history for FFT
+let signalHistory = [];
+const maxSignalHistory = 512; // Power of 2 for FFT
 
 // p5.js setup function
 function setup() {
@@ -71,23 +75,33 @@ function draw() {
 // Update pendulum physics using equation of motion
 function updatePendulum() {
     const dt = 0.016; // ~60 fps
-    const g = 9.81;   // gravity
     
     // Angular frequency (omega = 2 * pi * f)
-    const omega0 = 2 * Math.PI * pendulumParams.frequency / 10; // Scale for visualization
+    const omega0 = 2 * Math.PI * pendulumParams.frequency;
+    
+    // Calculate damping from Q factor
+    // Q = omega0 / (2 * zeta * omega0) = 1 / (2 * zeta)
+    // Therefore: zeta = 1 / (2 * Q)
+    const zeta = 1.0 / (2.0 * pendulumParams.qFactor);
+    const dampingCoeff = 2 * zeta * omega0;
     
     // Damped harmonic oscillator equation
-    // Using small angle approximation for simplicity, but with correction
+    // d²θ/dt² = -ω₀² * sin(θ) - 2ζω₀ * dθ/dt
     const angleInRadians = pendulumAngle;
     
-    // For large angles, use proper pendulum equation
-    // d²θ/dt² = -(g/L) * sin(θ) - b * dθ/dt
+    // For better accuracy with high Q, use proper pendulum equation
     const acceleration = -omega0 * omega0 * sin(angleInRadians) - 
-                        pendulumParams.damping * pendulumVelocity;
+                        dampingCoeff * pendulumVelocity;
     
     // Update velocity and position (Euler integration)
     pendulumVelocity += acceleration * dt;
     pendulumAngle += pendulumVelocity * dt;
+    
+    // Store signal for FFT (record angular position)
+    signalHistory.push(pendulumAngle);
+    if (signalHistory.length > maxSignalHistory) {
+        signalHistory.shift();
+    }
     
     // Update time
     pendulumTime += dt;
@@ -190,24 +204,25 @@ function drawInfo() {
     
     // Display information
     const vcoOutput = pll.getVCOOutput();
-    text(`Pendulum Freq: ${pendulumParams.frequency.toFixed(3)} cycles/day`, 20, 20);
-    text(`VCO Freq: ${vcoOutput.frequency.toFixed(3)} cycles/day`, 20, 40);
+    text(`Pendulum Freq: ${pendulumParams.frequency.toFixed(3)} Hz`, 20, 20);
+    text(`VCO Freq: ${vcoOutput.frequency.toFixed(3)} Hz`, 20, 40);
     text(`Phase Error: ${(pll.phaseError * 180 / PI).toFixed(2)}°`, 20, 60);
     text(`Lock Status: ${pll.isLocked ? 'LOCKED' : 'ACQUIRING'}`, 20, 80);
+    text(`Q Factor: ${pendulumParams.qFactor.toExponential(1)}`, 20, 100);
     
     // Lock quality indicator
     const lockStatus = pll.getLockStatus();
     const lockQuality = lockStatus.lockQuality;
     
     fill(200);
-    rect(20, 105, 210, 15, 3);
+    rect(20, 115, 210, 15, 3);
     
     if (pll.isLocked) {
         fill(46, 204, 113);
     } else {
         fill(231, 76, 60);
     }
-    rect(20, 105, 210 * lockQuality, 15, 3);
+    rect(20, 115, 210 * lockQuality, 15, 3);
     
     pop();
     
@@ -225,7 +240,7 @@ function drawLegend() {
     // Background
     fill(255, 255, 255, 230);
     noStroke();
-    rect(legendX, legendY, 190, 80, 5);
+    rect(legendX, legendY, 190, 85, 5);
     
     // Title
     fill(44, 62, 80);
@@ -308,8 +323,8 @@ function updatePendulumAmplitude(amp) {
     pendulumParams.amplitude = amp;
 }
 
-function updateDamping(damp) {
-    pendulumParams.damping = damp;
+function updateQFactor(q) {
+    pendulumParams.qFactor = q;
 }
 
 function updatePLLGain(gain) {
@@ -328,10 +343,11 @@ function updateVCOFrequency(freq) {
 
 // Get PLL data for graphing
 function getPLLData() {
-    if (!pll) return { phaseError: [], frequency: [] };
+    if (!pll) return { phaseError: [], frequency: [], signal: [] };
     return {
         phaseError: pll.phaseErrorHistory,
-        frequency: pll.freqHistory
+        frequency: pll.freqHistory,
+        signal: signalHistory
     };
 }
 

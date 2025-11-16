@@ -7,17 +7,17 @@ const translations = {
         
         // Controls
         controlsTitle: "Controls",
-        labelFreq: "Pendulum Frequency (cycles/day)",
+        labelFreq: "Pendulum Frequency (Hz)",
         labelAmplitude: "Amplitude (degrees)",
         labelGain: "PLL Loop Gain",
-        labelDamping: "Damping Factor",
+        labelQ: "Quality Factor Q",
         labelVco: "VCO Initial Frequency",
         
         // Tooltips
-        tooltipFreq: "Natural frequency of the pendulum",
+        tooltipFreq: "Natural frequency of the pendulum oscillation",
         tooltipAmplitude: "Maximum swing angle",
         tooltipGain: "How fast the PLL locks to the signal",
-        tooltipDamping: "Energy dissipation rate",
+        tooltipQ: "Oscillator quality factor (higher = less damping, longer oscillations)",
         tooltipVco: "Starting frequency of the Voltage Controlled Oscillator",
         
         // Buttons
@@ -34,6 +34,7 @@ const translations = {
         // Graphs
         graphPhaseLabel: "Phase Error Over Time",
         graphFreqLabel: "PLL Locked Frequency",
+        graphSpectrumLabel: "Frequency Spectrum (Tidal Components)",
         
         // Info Panel
         infoTitle: "About Phase-Locked Loops and Tidal Frequencies",
@@ -72,17 +73,17 @@ const translations = {
         
         // Controls
         controlsTitle: "Controlli",
-        labelFreq: "Frequenza del Pendolo (cicli/giorno)",
+        labelFreq: "Frequenza del Pendolo (Hz)",
         labelAmplitude: "Ampiezza (gradi)",
         labelGain: "Guadagno del Loop PLL",
-        labelDamping: "Fattore di Smorzamento",
+        labelQ: "Fattore di Qualità Q",
         labelVco: "Frequenza Iniziale VCO",
         
         // Tooltips
-        tooltipFreq: "Frequenza naturale del pendolo",
+        tooltipFreq: "Frequenza naturale dell'oscillazione del pendolo",
         tooltipAmplitude: "Angolo massimo di oscillazione",
         tooltipGain: "Velocità con cui il PLL si aggancia al segnale",
-        tooltipDamping: "Tasso di dissipazione dell'energia",
+        tooltipQ: "Fattore di qualità dell'oscillatore (più alto = meno smorzamento, oscillazioni più lunghe)",
         tooltipVco: "Frequenza di partenza dell'Oscillatore Controllato in Tensione",
         
         // Buttons
@@ -99,6 +100,7 @@ const translations = {
         // Graphs
         graphPhaseLabel: "Errore di Fase nel Tempo",
         graphFreqLabel: "Frequenza Agganciata del PLL",
+        graphSpectrumLabel: "Spettro di Frequenza (Componenti Mareali)",
         
         // Info Panel
         infoTitle: "Il Phase-Locked Loop e le Frequenze Mareali",
@@ -165,7 +167,7 @@ function applyTranslations() {
     updateLabelText('label-freq', t.labelFreq, t.tooltipFreq);
     updateLabelText('label-amplitude', t.labelAmplitude, t.tooltipAmplitude);
     updateLabelText('label-gain', t.labelGain, t.tooltipGain);
-    updateLabelText('label-damping', t.labelDamping, t.tooltipDamping);
+    updateLabelText('label-q', t.labelQ, t.tooltipQ);
     updateLabelText('label-vco', t.labelVco, t.tooltipVco);
     
     // Buttons
@@ -178,6 +180,7 @@ function applyTranslations() {
     // Graphs
     document.getElementById('graph-phase-label').textContent = t.graphPhaseLabel;
     document.getElementById('graph-freq-label').textContent = t.graphFreqLabel;
+    document.getElementById('graph-spectrum-label').textContent = t.graphSpectrumLabel;
     
     // Info panel
     document.getElementById('info-title').textContent = t.infoTitle;

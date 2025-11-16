@@ -16,7 +16,7 @@ function setupSliders() {
     
     freqSlider.addEventListener('input', (e) => {
         const value = parseFloat(e.target.value);
-        freqValue.textContent = value.toFixed(2);
+        freqValue.textContent = value.toFixed(2) + ' Hz';
         updatePendulumFrequency(value);
     });
     
@@ -40,14 +40,15 @@ function setupSliders() {
         updatePLLGain(value);
     });
     
-    // Damping Factor Slider
-    const dampingSlider = document.getElementById('damping');
-    const dampingValue = document.getElementById('value-damping');
+    // Quality Factor Q Slider (logarithmic scale)
+    const qSlider = document.getElementById('q-factor');
+    const qValue = document.getElementById('value-q');
     
-    dampingSlider.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        dampingValue.textContent = value.toFixed(2);
-        updateDamping(value);
+    qSlider.addEventListener('input', (e) => {
+        const exponent = parseFloat(e.target.value);
+        const value = Math.pow(10, exponent);
+        qValue.textContent = value.toExponential(1);
+        updateQFactor(value);
     });
     
     // VCO Initial Frequency Slider
@@ -79,18 +80,22 @@ function setupButtons() {
 // Graph rendering contexts
 let phaseErrorCtx = null;
 let frequencyCtx = null;
+let spectrumCtx = null;
 
 // Initialize canvas contexts for graphs
 function initializeGraphs() {
     const phaseCanvas = document.getElementById('phase-error-graph');
     const freqCanvas = document.getElementById('frequency-graph');
+    const spectrumCanvas = document.getElementById('spectrum-graph');
     
     phaseErrorCtx = phaseCanvas.getContext('2d');
     frequencyCtx = freqCanvas.getContext('2d');
+    spectrumCtx = spectrumCanvas.getContext('2d');
     
     // Set canvas dimensions
     resizeGraphCanvas(phaseCanvas);
     resizeGraphCanvas(freqCanvas);
+    resizeGraphCanvas(spectrumCanvas);
     
     // Start animation loop for graphs
     requestAnimationFrame(updateGraphs);
@@ -116,6 +121,10 @@ function clearGraphs() {
         const canvas = frequencyCtx.canvas;
         frequencyCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
+    if (spectrumCtx) {
+        const canvas = spectrumCtx.canvas;
+        spectrumCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
 // Update graphs with current PLL data
@@ -135,11 +144,16 @@ function updateGraphs() {
         // Update frequency graph
         drawGraph(frequencyCtx, data.frequency, {
             color: '#3498db',
-            label: 'Frequency (cycles/day)',
+            label: 'Frequency (Hz)',
             min: 0.3,
             max: 2.5,
             showZeroLine: false
         });
+        
+        // Update spectrum graph
+        if (data.signal && data.signal.length > 0) {
+            drawSpectrum(spectrumCtx, data.signal);
+        }
     }
     
     // Continue animation loop
@@ -240,11 +254,182 @@ function mapValue(value, inMin, inMax, outMin, outMax) {
     return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
 }
 
+// Simple FFT implementation (Cooley-Tukey algorithm)
+function fft(real, imag) {
+    const n = real.length;
+    if (n <= 1) return;
+    
+    // Bit-reversal permutation
+    let j = 0;
+    for (let i = 0; i < n; i++) {
+        if (i < j) {
+            [real[i], real[j]] = [real[j], real[i]];
+            [imag[i], imag[j]] = [imag[j], imag[i]];
+        }
+        let k = n / 2;
+        while (k <= j) {
+            j -= k;
+            k /= 2;
+        }
+        j += k;
+    }
+    
+    // FFT computation
+    for (let len = 2; len <= n; len *= 2) {
+        const angle = -2 * Math.PI / len;
+        const wlen_r = Math.cos(angle);
+        const wlen_i = Math.sin(angle);
+        
+        for (let i = 0; i < n; i += len) {
+            let w_r = 1;
+            let w_i = 0;
+            
+            for (let j = 0; j < len / 2; j++) {
+                const u_r = real[i + j];
+                const u_i = imag[i + j];
+                const v_r = real[i + j + len / 2] * w_r - imag[i + j + len / 2] * w_i;
+                const v_i = real[i + j + len / 2] * w_i + imag[i + j + len / 2] * w_r;
+                
+                real[i + j] = u_r + v_r;
+                imag[i + j] = u_i + v_i;
+                real[i + j + len / 2] = u_r - v_r;
+                imag[i + j + len / 2] = u_i - v_i;
+                
+                const temp_r = w_r;
+                w_r = w_r * wlen_r - w_i * wlen_i;
+                w_i = temp_r * wlen_i + w_i * wlen_r;
+            }
+        }
+    }
+}
+
+// Draw frequency spectrum with tidal component markers
+function drawSpectrum(ctx, signal) {
+    const canvas = ctx.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Background
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Prepare signal for FFT
+    const n = 512; // Power of 2
+    const real = new Array(n).fill(0);
+    const imag = new Array(n).fill(0);
+    
+    // Apply Hanning window and copy signal
+    for (let i = 0; i < Math.min(signal.length, n); i++) {
+        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / n));
+        real[i] = signal[i] * window;
+    }
+    
+    // Perform FFT
+    fft(real, imag);
+    
+    // Calculate magnitude
+    const magnitude = new Array(n / 2);
+    for (let i = 0; i < n / 2; i++) {
+        magnitude[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / n;
+    }
+    
+    // Find max for normalization
+    const maxMag = Math.max(...magnitude.slice(1, n / 4));
+    
+    // Sampling parameters
+    const dt = 0.016; // seconds per sample
+    const fs = 1 / dt; // sampling frequency
+    
+    // Draw spectrum
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    const freqRange = 3.0; // Hz, show up to 3 Hz
+    const numBins = Math.min(n / 2, Math.floor(n / 2 * freqRange / (fs / 2)));
+    
+    for (let i = 1; i < numBins; i++) {
+        const freq = i * fs / n;
+        const x = (freq / freqRange) * width;
+        const mag = magnitude[i] / maxMag;
+        const y = height - 30 - (mag * (height - 50));
+        
+        if (i === 1) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Draw tidal frequency markers (converted to 1 Hz system)
+    const tidalComponents = [
+        { name: 'M2', period: 12.42, color: '#e74c3c' },  // Lunar semidiurnal
+        { name: 'S2', period: 12.00, color: '#3498db' },  // Solar semidiurnal
+        { name: 'K1', period: 23.93, color: '#2ecc71' },  // Lunisolar diurnal
+        { name: 'O1', period: 25.82, color: '#f39c12' }   // Lunar diurnal
+    ];
+    
+    // For simulation: scale to match our 1 Hz oscillator
+    // Show harmonics and subharmonics of the fundamental
+    const fundamentalFreq = 1.0; // Hz
+    const harmonics = [0.5, 1.0, 1.5, 2.0, 2.5];
+    
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    
+    harmonics.forEach((harm, idx) => {
+        if (harm <= freqRange) {
+            const x = (harm / freqRange) * width;
+            
+            ctx.strokeStyle = '#95a5a6';
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height - 30);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillText(`${harm.toFixed(1)} Hz`, x, height - 15);
+        }
+    });
+    
+    // Add theoretical tidal markers (scaled for educational purposes)
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillText('Tidal components would appear', width / 2, 15);
+    ctx.fillText('at much lower frequencies', width / 2, 28);
+    
+    // Axes
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, height - 30);
+    ctx.lineTo(width, height - 30);
+    ctx.stroke();
+    
+    // Y-axis label
+    ctx.save();
+    ctx.translate(15, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Magnitude', 0, 0);
+    ctx.restore();
+}
+
 // Handle window resize
 window.addEventListener('resize', () => {
-    if (phaseErrorCtx && frequencyCtx) {
+    if (phaseErrorCtx && frequencyCtx && spectrumCtx) {
         resizeGraphCanvas(phaseErrorCtx.canvas);
         resizeGraphCanvas(frequencyCtx.canvas);
+        resizeGraphCanvas(spectrumCtx.canvas);
     }
 });
 

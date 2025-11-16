@@ -26,11 +26,11 @@
                 
                 <div class="control-group">
                     <label for="pendulum-freq" id="label-freq">
-                        Pendulum Frequency (cycles/day)
+                        Pendulum Frequency (Hz)
                         <span class="info-icon" title="Natural frequency of the pendulum">ⓘ</span>
                     </label>
                     <input type="range" id="pendulum-freq" min="0.5" max="2.0" step="0.01" value="1.0">
-                    <span id="value-freq" class="value-display">1.00</span>
+                    <span id="value-freq" class="value-display">1.00 Hz</span>
                 </div>
 
                 <div class="control-group">
@@ -52,12 +52,12 @@
                 </div>
 
                 <div class="control-group">
-                    <label for="damping" id="label-damping">
-                        Damping Factor
-                        <span class="info-icon" title="Energy dissipation rate">ⓘ</span>
+                    <label for="q-factor" id="label-q">
+                        Quality Factor Q
+                        <span class="info-icon" title="Oscillator quality factor (higher = less damping)">ⓘ</span>
                     </label>
-                    <input type="range" id="damping" min="0.0" max="0.5" step="0.01" value="0.05">
-                    <span id="value-damping" class="value-display">0.05</span>
+                    <input type="range" id="q-factor" min="2" max="7" step="0.1" value="3">
+                    <span id="value-q" class="value-display">1000</span>
                 </div>
 
                 <div class="control-group">
@@ -98,6 +98,10 @@
                     <div class="graph-panel">
                         <canvas id="frequency-graph"></canvas>
                         <p id="graph-freq-label" class="graph-label">PLL Locked Frequency</p>
+                    </div>
+                    <div class="graph-panel graph-panel-wide">
+                        <canvas id="spectrum-graph"></canvas>
+                        <p id="graph-spectrum-label" class="graph-label">Frequency Spectrum (Tidal Components)</p>
                     </div>
                 </div>
             </section>

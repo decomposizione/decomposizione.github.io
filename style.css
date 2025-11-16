@@ -262,6 +262,10 @@ input[type="range"]::-moz-range-thumb {
     gap: 1.5rem;
 }
 
+.graph-panel-wide {
+    grid-column: 1 / -1;
+}
+
 .graph-panel {
     background: var(--panel-bg);
     padding: 1rem;
