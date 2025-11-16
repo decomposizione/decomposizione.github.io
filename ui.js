@@ -93,6 +93,12 @@ function setupSliders() {
     const simSpeedSlider = document.getElementById('sim-speed');
     const simSpeedValue = document.getElementById('value-sim-speed');
     
+    // Initialize to 1000x (exponent = 3, since 10^3 = 1000)
+    const initialExponent = 3;
+    const initialSpeed = Math.pow(10, initialExponent);
+    simSpeedValue.textContent = Math.round(initialSpeed) + 'x';
+    updateSimulationSpeed(initialSpeed);
+    
     simSpeedSlider.addEventListener('input', (e) => {
         const exponent = parseFloat(e.target.value);
         const speed = Math.pow(10, exponent); // 10^0 = 1x, 10^3 = 1000x
@@ -300,10 +306,11 @@ function updateGraphs() {
             drawSpectrum(spectrumCtx, data.signal);
         }
         
-        // Update tidal spectrum graph
+        // Update tidal spectrum graph (calculates FFT)
         if (data.tidalSignal && data.tidalSignal.length > 0) {
             drawTidalSpectrum(tidalSpectrumCtx, data.tidalSignal);
-            drawTidalPhase(tidalPhaseCtx, data.tidalSignal);
+            // Draw phase using the same FFT results
+            drawTidalPhase(tidalPhaseCtx);
         }
     }
     
@@ -640,6 +647,11 @@ function drawSpectrum(ctx, signal) {
     ctx.restore();
 }
 
+// Global variables to store FFT results for tidal analysis
+let tidalFFTReal = null;
+let tidalFFTImag = null;
+let tidalFFTParams = null;
+
 // Draw tidal frequency spectrum (20-25 µHz range)
 function drawTidalSpectrum(ctx, signal) {
     const canvas = ctx.canvas;
@@ -662,6 +674,11 @@ function drawTidalSpectrum(ctx, signal) {
         ctx.fillText('Accumulating data for tidal analysis...', width / 2, height / 2);
         ctx.font = '12px sans-serif';
         ctx.fillText(`${signal.length} / 64 samples (updates every 64, buffer: 65536)`, width / 2, height / 2 + 20);
+        
+        // Clear FFT results if not enough data
+        tidalFFTReal = null;
+        tidalFFTImag = null;
+        tidalFFTParams = null;
         return;
     }
     
@@ -690,11 +707,15 @@ function drawTidalSpectrum(ctx, signal) {
     // Perform FFT
     fft(real, imag);
     
-    // Calculate magnitude
+    // Calculate magnitude first
     const magnitude = new Array(n / 2);
     for (let i = 0; i < n / 2; i++) {
         magnitude[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / n;
     }
+    
+    // Store FFT results globally for phase plot (including magnitude)
+    tidalFFTReal = real.slice(); // Copy arrays
+    tidalFFTImag = imag.slice();
     
     // Sampling parameters for tidal signal
     // Sampling happens at zero crossings (when electromagnet impulse is applied)
@@ -881,10 +902,22 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.textAlign = 'center';
     ctx.fillText('Power', 0, 0);
     ctx.restore();
+    
+    // Store FFT parameters for phase plot (including magnitude for threshold)
+    tidalFFTParams = {
+        n: n,
+        fs: fs,
+        simulationTimeScale: simulationTimeScale,
+        displayMinFreq: displayMinFreq,
+        displayMaxFreq: displayMaxFreq,
+        displayMinBin: displayMinBin,
+        displayMaxBin: displayMaxBin,
+        magnitude: magnitude.slice() // Store magnitude for phase plot threshold
+    };
 }
 
-// Draw tidal frequency phase (20-25 µHz range)
-function drawTidalPhase(ctx, signal) {
+// Draw tidal frequency phase (20-25 µHz range) - uses FFT results from drawTidalSpectrum
+function drawTidalPhase(ctx) {
     const canvas = ctx.canvas;
     const rect = canvas.getBoundingClientRect();
     const width = rect.width;
@@ -897,119 +930,183 @@ function drawTidalPhase(ctx, signal) {
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
     
-    // Update every 64 samples, but use buffer of 65536 samples
-    if (signal.length < 64) {
+    // Check if FFT results are available
+    if (!tidalFFTReal || !tidalFFTImag || !tidalFFTParams) {
         ctx.fillStyle = '#7f8c8d';
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Accumulating data for phase analysis...', width / 2, height / 2);
         ctx.font = '12px sans-serif';
-        ctx.fillText(`${signal.length} / 64 samples (updates every 64, buffer: 65536)`, width / 2, height / 2 + 20);
+        ctx.fillText('(waiting for FFT calculation)', width / 2, height / 2 + 20);
         return;
     }
     
-    // Prepare signal for FFT - use up to 65536 samples from buffer
-    // Use largest power of 2 that fits: 65536 = 2^16
-    const n = 65536; // FFT size matching buffer size
-    const real = new Array(n).fill(0);
-    const imag = new Array(n).fill(0);
+    // Use stored FFT results
+    const real = tidalFFTReal;
+    const imag = tidalFFTImag;
+    const n = tidalFFTParams.n;
+    const fs = tidalFFTParams.fs;
+    const simulationTimeScale = tidalFFTParams.simulationTimeScale;
+    const displayMinFreq = tidalFFTParams.displayMinFreq;
+    const displayMaxFreq = tidalFFTParams.displayMaxFreq;
+    const displayMinBin = tidalFFTParams.displayMinBin;
+    const displayMaxBin = tidalFFTParams.displayMaxBin;
+    const magnitude = tidalFFTParams.magnitude;
     
-    // Apply Hanning window and copy signal (use most recent 65536 samples)
-    const signalLength = signal.length;
-    const actualLength = Math.min(signalLength, n);
-    const startIdx = signalLength > n ? signalLength - n : 0; // Start index for samples used in FFT
+    // Find max magnitude in display range for threshold
+    const displayMagnitudes = magnitude.slice(displayMinBin, displayMaxBin);
+    const maxMag = Math.max(...displayMagnitudes, 1e-10);
+    const threshold = maxMag * 0.05; // 5% of max magnitude
     
-    for (let i = 0; i < actualLength; i++) {
-        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / n)); // Use n for window length, not actualLength
-        // Use most recent samples if buffer is full, otherwise from start
-        const signalIdx = startIdx + i;
-        real[i] = signal[signalIdx] * window;
-    }
-    // Zero-pad if buffer not yet full
-    for (let i = actualLength; i < n; i++) {
-        real[i] = 0;
-    }
-    
-    // Perform FFT
-    fft(real, imag);
-    
-    // Calculate phase: atan2(imag, real)
+    // Calculate phase: atan2(imag, real) - no unwrapping for better visibility
     const phase = new Array(n / 2);
     for (let i = 0; i < n / 2; i++) {
         phase[i] = Math.atan2(imag[i], real[i]);
     }
     
-    // Sampling parameters for tidal signal
-    // Sampling happens at zero crossings (when electromagnet impulse is applied)
-    // The effective sampling frequency is calculated from ALL periods from first to last sample
-    // Starting from the 4th sample (skip first 3 which may be less accurate)
-    let fs = 0.4; // Default fallback
-    if (typeof getPLLData === 'function') {
-        const data = getPLLData();
-        if (data.tidalPeriods && data.tidalPeriods.length > 3) {
-            // Use all periods from 4th sample onwards (index 3) to the last
-            const periodsToUse = data.tidalPeriods.slice(3);
-            const avgPeriod = periodsToUse.reduce((a, b) => a + b, 0) / periodsToUse.length;
-            // Effective sampling frequency = 1 / average period
-            fs = 1.0 / avgPeriod;
-        } else if (data.tidalPeriods && data.tidalPeriods.length > 0) {
-            // If we have less than 4 samples, use all available (but this is less accurate)
-            const avgPeriod = data.tidalPeriods.reduce((a, b) => a + b, 0) / data.tidalPeriods.length;
-            fs = 1.0 / avgPeriod;
-        } else {
-            // Fallback to natural frequency if no periods measured yet
-            if (typeof window !== 'undefined' && window.pendulumParams) {
-                const params = window.pendulumParams;
-                const g = 9.81;
-                const lengthM = params.lengthCm / 100;
-                fs = Math.sqrt(g / lengthM) / (2 * Math.PI);
+    // Find min/max phase values where magnitude is significant for autoscaling
+    let minPhase = Infinity;
+    let maxPhase = -Infinity;
+    let hasSignificantPhase = false;
+    
+    for (let i = displayMinBin; i < displayMaxBin; i++) {
+        if (magnitude[i] > threshold) {
+            minPhase = Math.min(minPhase, phase[i]);
+            maxPhase = Math.max(maxPhase, phase[i]);
+            hasSignificantPhase = true;
+        }
+    }
+    
+    // Default to [-π, π] if no significant phase found
+    if (!hasSignificantPhase) {
+        minPhase = -Math.PI;
+        maxPhase = Math.PI;
+    }
+    
+    // Add some margin
+    const phaseMargin = (maxPhase - minPhase) * 0.1;
+    minPhase -= phaseMargin;
+    maxPhase += phaseMargin;
+    
+    // Find local maxima (peaks) in the magnitude spectrum
+    const peaks = [];
+    const minPeakDistance = 10; // Minimum bins between peaks
+    
+    for (let i = displayMinBin + 1; i < displayMaxBin - 1; i++) {
+        if (magnitude[i] > threshold) {
+            // Check if it's a local maximum
+            if (magnitude[i] > magnitude[i-1] && magnitude[i] > magnitude[i+1]) {
+                // Check distance from previous peaks
+                let tooClose = false;
+                for (const peak of peaks) {
+                    if (Math.abs(i - peak.bin) < minPeakDistance) {
+                        tooClose = true;
+                        // Keep the higher peak
+                        if (magnitude[i] > magnitude[peak.bin]) {
+                            peak.bin = i;
+                            peak.freq = i * fs / n;
+                            peak.phase = phase[i];
+                            peak.magnitude = magnitude[i];
+                        }
+                        break;
+                    }
+                }
+                
+                if (!tooClose) {
+                    peaks.push({
+                        bin: i,
+                        freq: i * fs / n,
+                        phase: phase[i],
+                        magnitude: magnitude[i]
+                    });
+                }
             }
         }
     }
     
-    // Tidal frequency range (in Hz)
-    const simulationTimeScale = 1000; // Must match the scale in sketch.js
+    // Find max magnitude for normalization
+    const maxPeakMagnitude = peaks.length > 0 ? Math.max(...peaks.map(p => p.magnitude)) : 1;
     
-    // Use user-defined center frequency
-    const centerFreq = tidalSpectrumCenterFreq * simulationTimeScale;
-    const freqRange = 20e-6 * simulationTimeScale; // Display range width
-    const displayMinFreq = Math.max(1e-6 * simulationTimeScale, centerFreq - freqRange / 2);
-    const displayMaxFreq = centerFreq + freqRange / 2;
-    
-    // Find indices corresponding to display range
-    const displayMinBin = Math.floor(displayMinFreq * n / fs);
-    const displayMaxBin = Math.ceil(displayMaxFreq * n / fs);
-    
-    // Draw phase spectrum in tidal range
-    ctx.strokeStyle = '#9b59b6';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    
-    let firstPoint = true;
-    for (let i = displayMinBin; i < displayMaxBin; i++) {
-        const freq = i * fs / n;
-        const x = ((freq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
-        // Phase is in radians, map from [-π, π] to [height - 40, 30]
-        const y = height - 40 - ((phase[i] + Math.PI) / (2 * Math.PI)) * (height - 70);
+    // Draw phase as power-weighted points/markers at peaks
+    for (const peak of peaks) {
+        const x = ((peak.freq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+        const y = height - 40 - ((peak.phase - minPhase) / (maxPhase - minPhase)) * (height - 70);
         
-        if (firstPoint) {
-            ctx.moveTo(x, y);
-            firstPoint = false;
-        } else {
-            ctx.lineTo(x, y);
+        // Calculate power weight (normalized magnitude)
+        const powerWeight = peak.magnitude / maxPeakMagnitude;
+        
+        // Size of marker proportional to power (min 3px, max 12px)
+        const markerSize = 3 + (powerWeight * 9);
+        
+        // Opacity proportional to power (min 0.4, max 1.0)
+        const opacity = 0.4 + (powerWeight * 0.6);
+        
+        // Draw a circle at the peak with size and opacity based on power
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = '#9b59b6';
+        ctx.strokeStyle = '#7b3fa0';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, markerSize, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+        
+        // Draw a vertical line to show the phase value (thickness based on power)
+        ctx.globalAlpha = opacity * 0.5;
+        ctx.strokeStyle = '#9b59b6';
+        ctx.lineWidth = 1 + (powerWeight * 2);
+        ctx.beginPath();
+        ctx.moveTo(x, height - 40);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+        
+        // Draw phase value label (only for significant peaks)
+        if (powerWeight > 0.3) {
+            ctx.fillStyle = '#7f8c8d';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(peak.phase.toFixed(2), x, y - markerSize - 5);
         }
     }
-    ctx.stroke();
     
-    // Draw zero phase line
-    const zeroPhaseY = height - 40 - (Math.PI / (2 * Math.PI)) * (height - 70);
-    ctx.strokeStyle = '#95a5a6';
+    // Draw zero phase line if it's in range
+    if (0 >= minPhase && 0 <= maxPhase) {
+        const zeroPhaseY = height - 40 - ((0 - minPhase) / (maxPhase - minPhase)) * (height - 70);
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(0, zeroPhaseY);
+        ctx.lineTo(width, zeroPhaseY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    
+    // Draw reference grid lines
+    ctx.strokeStyle = '#e0e0e0';
     ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(0, zeroPhaseY);
-    ctx.lineTo(width, zeroPhaseY);
-    ctx.stroke();
+    ctx.setLineDash([2, 2]);
+    
+    // Draw π line if in range
+    if (Math.PI >= minPhase && Math.PI <= maxPhase) {
+        const piY = height - 40 - ((Math.PI - minPhase) / (maxPhase - minPhase)) * (height - 70);
+        ctx.beginPath();
+        ctx.moveTo(0, piY);
+        ctx.lineTo(width, piY);
+        ctx.stroke();
+    }
+    
+    // Draw -π line if in range
+    if (-Math.PI >= minPhase && -Math.PI <= maxPhase) {
+        const minusPiY = height - 40 - ((-Math.PI - minPhase) / (maxPhase - minPhase)) * (height - 70);
+        ctx.beginPath();
+        ctx.moveTo(0, minusPiY);
+        ctx.lineTo(width, minusPiY);
+        ctx.stroke();
+    }
+    
     ctx.setLineDash([]);
     
     // Draw tidal component markers
@@ -1103,9 +1200,16 @@ function drawTidalPhase(ctx, signal) {
     ctx.fillStyle = '#7f8c8d';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('π', 5, 30);
-    ctx.fillText('0', 5, zeroPhaseY + 3);
-    ctx.fillText('-π', 5, height - 40);
+    
+    // Show max and min phase values
+    ctx.fillText(maxPhase.toFixed(2), 5, 35);
+    ctx.fillText(minPhase.toFixed(2), 5, height - 45);
+    
+    // Show 0 if in range
+    if (0 >= minPhase && 0 <= maxPhase) {
+        const zeroY = height - 40 - ((0 - minPhase) / (maxPhase - minPhase)) * (height - 70);
+        ctx.fillText('0', 5, zeroY + 3);
+    }
     
     // Y-axis label
     ctx.save();

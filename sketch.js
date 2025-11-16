@@ -35,7 +35,7 @@ const canvasHeight = 500;
 const simulationTimeScale = 1000; // Speed up tidal effects
 
 // Simulation speed multiplier (1x = real-time, 1000x = 1000x faster)
-let simulationSpeed = 1.0; // Default: real-time
+let simulationSpeed = 1000.0; // Default: 1000x
 
 // Pendulum physics state
 let pendulumAngle = 0;
