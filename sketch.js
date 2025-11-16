@@ -461,6 +461,11 @@ function resetSimulation() {
     const naturalFreq = getNaturalFrequency();
     pll.reset(naturalFreq);
     
+    // Clear sampling buffers
+    signalHistory = [];
+    tidalSignalHistory = [];
+    tidalPeriodHistory = [];
+    
     // Clear graphs
     if (typeof clearGraphs === 'function') {
         clearGraphs();
