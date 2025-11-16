@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLL Pendulum - Educational Simulation</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1 id="main-title">Phase-Locked Loop Pendulum Simulator</h1>
+            <div class="language-toggle">
+                <button id="lang-it" class="lang-btn active">IT</button>
+                <button id="lang-en" class="lang-btn">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <!-- Sidebar with Controls -->
+            <aside class="controls-panel">
+                <h2 id="controls-title">Controls</h2>
+                
+                <div class="control-group">
+                    <label for="pendulum-freq" id="label-freq">
+                        Pendulum Frequency (cycles/day)
+                        <span class="info-icon" title="Natural frequency of the pendulum">ⓘ</span>
+                    </label>
+                    <input type="range" id="pendulum-freq" min="0.5" max="2.0" step="0.01" value="1.0">
+                    <span id="value-freq" class="value-display">1.00</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="pendulum-amplitude" id="label-amplitude">
+                        Amplitude (degrees)
+                        <span class="info-icon" title="Maximum swing angle">ⓘ</span>
+                    </label>
+                    <input type="range" id="pendulum-amplitude" min="10" max="80" step="1" value="45">
+                    <span id="value-amplitude" class="value-display">45</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="pll-gain" id="label-gain">
+                        PLL Loop Gain
+                        <span class="info-icon" title="How fast the PLL locks to the signal">ⓘ</span>
+                    </label>
+                    <input type="range" id="pll-gain" min="0.1" max="5.0" step="0.1" value="1.0">
+                    <span id="value-gain" class="value-display">1.00</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="damping" id="label-damping">
+                        Damping Factor
+                        <span class="info-icon" title="Energy dissipation rate">ⓘ</span>
+                    </label>
+                    <input type="range" id="damping" min="0.0" max="0.5" step="0.01" value="0.05">
+                    <span id="value-damping" class="value-display">0.05</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="vco-freq" id="label-vco">
+                        VCO Initial Frequency
+                        <span class="info-icon" title="Starting frequency of the Voltage Controlled Oscillator">ⓘ</span>
+                    </label>
+                    <input type="range" id="vco-freq" min="0.3" max="2.5" step="0.01" value="0.8">
+                    <span id="value-vco" class="value-display">0.80</span>
+                </div>
+
+                <div class="button-group">
+                    <button id="btn-reset" class="btn btn-primary">Reset Simulation</button>
+                    <button id="btn-pause" class="btn btn-secondary">Pause</button>
+                </div>
+
+                <div class="pll-status">
+                    <h3 id="status-title">PLL Status</h3>
+                    <div class="status-indicator">
+                        <span id="lock-status" class="status-label">Acquiring...</span>
+                        <div class="lock-led" id="lock-led"></div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Visualization Area -->
+            <section class="main-content">
+                <div class="canvas-container">
+                    <div id="p5-canvas"></div>
+                </div>
+
+                <!-- Graphs Panel -->
+                <div class="graphs-container">
+                    <div class="graph-panel">
+                        <canvas id="phase-error-graph"></canvas>
+                        <p id="graph-phase-label" class="graph-label">Phase Error Over Time</p>
+                    </div>
+                    <div class="graph-panel">
+                        <canvas id="frequency-graph"></canvas>
+                        <p id="graph-freq-label" class="graph-label">PLL Locked Frequency</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Educational Info Panel -->
+        <section class="info-panel">
+            <h2 id="info-title">About Phase-Locked Loops and Tidal Frequencies</h2>
+            <div class="info-content" id="info-content">
+                <p>
+                    A Phase-Locked Loop (PLL) is a control system that generates an output signal whose phase is related to the phase of an input signal. 
+                    In this simulation, the pendulum represents a natural oscillator (like tidal forces), and the PLL attempts to lock onto its frequency.
+                </p>
+                <h3>How it works:</h3>
+                <ul>
+                    <li><strong>Phase Detector:</strong> Compares the pendulum's phase with the VCO output</li>
+                    <li><strong>Loop Filter:</strong> Smooths the phase error signal</li>
+                    <li><strong>VCO:</strong> Adjusts its frequency based on the filtered error</li>
+                </ul>
+                <h3>Application to Tidal Analysis:</h3>
+                <p>
+                    Tidal frequencies are extremely stable and can be measured using PLL techniques. The main tidal constituents 
+                    (M2, S2, K1, O1) have known periods, and PLLs can extract these specific frequency components from noisy tidal gauge data.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p id="footer-text">Educational simulation for understanding Phase-Locked Loops | Built with p5.js</p>
+    </footer>
+
+    <script src="i18n.js"></script>
+    <script src="pll.js"></script>
+    <script src="ui.js"></script>
+    <script src="sketch.js"></script>
+</body>
+</html>
+
