@@ -11,7 +11,6 @@ const translations = {
         labelAmplitudeDisplay: "Current Amplitude (degrees)",
         labelGain: "PLL Loop Gain",
         labelQ: "Quality Factor Q",
-        labelVco: "VCO Initial Frequency",
         labelLunar: "Lunar Modulation Frequency",
         labelSpectrumCenter: "Pendulum Spectrum Center (Hz)",
         labelTidalSpectrumCenter: "Tidal Spectrum Center (µHz)",
@@ -24,7 +23,6 @@ const translations = {
         tooltipAmplitudeDisplay: "Resulting amplitude from energy impulse and Q factor. Not user-controllable.",
         tooltipGain: "How fast the PLL locks to the signal",
         tooltipQ: "Oscillator quality factor (higher = less damping, longer oscillations)",
-        tooltipVco: "Starting frequency of the Voltage Controlled Oscillator",
         tooltipLunar: "Frequency of tidal modulation (M2 lunar component). Range: 200 µHz to 0.1 Hz",
         tooltipSpectrumCenter: "Center frequency for pendulum spectrum display. Adjust to zoom into specific frequency ranges",
         tooltipTidalSpectrumCenter: "Center frequency for tidal spectrum display. Adjust to explore different tidal components",
@@ -90,7 +88,6 @@ const translations = {
         labelAmplitudeDisplay: "Ampiezza Corrente (gradi)",
         labelGain: "Guadagno del Loop PLL",
         labelQ: "Fattore di Qualità Q",
-        labelVco: "Frequenza Iniziale VCO",
         labelLunar: "Frequenza Modulazione Lunare",
         labelSpectrumCenter: "Centro Spettro Pendolo (Hz)",
         labelTidalSpectrumCenter: "Centro Spettro Mareale (µHz)",
@@ -103,7 +100,6 @@ const translations = {
         tooltipAmplitudeDisplay: "Ampiezza risultante dall'impulso di energia e dal fattore Q. Non controllabile dall'utente.",
         tooltipGain: "Velocità con cui il PLL si aggancia al segnale",
         tooltipQ: "Fattore di qualità dell'oscillatore (più alto = meno smorzamento, oscillazioni più lunghe)",
-        tooltipVco: "Frequenza di partenza dell'Oscillatore Controllato in Tensione",
         tooltipLunar: "Frequenza della modulazione mareale (componente lunare M2). Range: 200 µHz a 0.1 Hz",
         tooltipSpectrumCenter: "Frequenza centrale per visualizzazione spettro pendolo. Regola per ingrandire specifici range di frequenza",
         tooltipTidalSpectrumCenter: "Frequenza centrale per visualizzazione spettro mareale. Regola per esplorare diverse componenti mareali",
@@ -209,7 +205,6 @@ function applyTranslations() {
     // Control labels
     updateLabelText('label-gain', t.labelGain, t.tooltipGain);
     updateLabelText('label-q', t.labelQ, t.tooltipQ);
-    updateLabelText('label-vco', t.labelVco, t.tooltipVco);
     updateLabelText('label-lunar', t.labelLunar, t.tooltipLunar);
     updateLabelText('label-spectrum-center', t.labelSpectrumCenter, t.tooltipSpectrumCenter);
     updateLabelText('label-tidal-spectrum-center', t.labelTidalSpectrumCenter, t.tooltipTidalSpectrumCenter);

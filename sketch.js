@@ -23,8 +23,8 @@ let lastAngleSign = 0;
 
 // PLL parameters
 let pllParams = {
-    loopGain: 1.0,
-    vcoInitialFreq: 0.8
+    loopGain: 1.0
+    // VCO initial frequency is set from natural pendulum frequency
 };
 
 // Canvas dimensions
@@ -56,11 +56,12 @@ function setup() {
     let canvas = createCanvas(canvasWidth, canvasHeight);
     canvas.parent('p5-canvas');
     
-    // Initialize PLL
-    pll = new PLL(pllParams.vcoInitialFreq, pllParams.loopGain);
-    
-    // Initialize pendulum
+    // Initialize pendulum first to get natural frequency
     resetPendulum();
+    
+    // Initialize PLL with natural frequency of pendulum
+    const naturalFreq = getNaturalFrequency();
+    pll = new PLL(naturalFreq, pllParams.loopGain);
     
     // Initial angle is set in resetPendulum() to 0.01 degrees
 }
@@ -401,7 +402,10 @@ function resetPendulum() {
 // Reset entire simulation
 function resetSimulation() {
     resetPendulum();
-    pll.reset(pllParams.vcoInitialFreq);
+    
+    // Reset PLL with current natural frequency
+    const naturalFreq = getNaturalFrequency();
+    pll.reset(naturalFreq);
     
     // Clear graphs
     if (typeof clearGraphs === 'function') {
@@ -439,13 +443,11 @@ function updateQFactor(q) {
 
 function updatePendulumLength(lengthCm) {
     pendulumParams.lengthCm = lengthCm;
-    // Update frequency based on new length (T = 2π√(L/g))
-    const g = 9.81;
-    const lengthM = lengthCm / 100;
-    const naturalPeriod = 2 * Math.PI * Math.sqrt(lengthM / g);
-    const naturalFreq = 1 / naturalPeriod;
-    // Optionally update frequency to match natural frequency
-    // pendulumParams.frequency = naturalFreq;
+    // Update PLL VCO frequency to match new natural frequency
+    const naturalFreq = getNaturalFrequency();
+    if (pll) {
+        pll.setVCOFrequency(naturalFreq);
+    }
 }
 
 function updatePendulumMass(mass) {
@@ -463,12 +465,8 @@ function updatePLLGain(gain) {
     }
 }
 
-function updateVCOFrequency(freq) {
-    pllParams.vcoInitialFreq = freq;
-    if (pll) {
-        pll.setVCOFrequency(freq);
-    }
-}
+// VCO frequency is now determined by PLL and natural frequency
+// No user control needed
 
 function updateLunarFrequency(freq) {
     pendulumParams.lunarFreq = freq;

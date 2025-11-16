@@ -69,16 +69,6 @@ function setupSliders() {
         updateQFactor(value);
     });
     
-    // VCO Initial Frequency Slider
-    const vcoSlider = document.getElementById('vco-freq');
-    const vcoValue = document.getElementById('value-vco');
-    
-    vcoSlider.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        vcoValue.textContent = value.toFixed(2);
-        updateVCOFrequency(value);
-    });
-    
     // Lunar Modulation Frequency Slider (logarithmic scale)
     const lunarSlider = document.getElementById('lunar-freq');
     const lunarValue = document.getElementById('value-lunar');
