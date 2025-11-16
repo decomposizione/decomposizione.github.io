@@ -34,7 +34,8 @@ const translations = {
         // Graphs
         graphPhaseLabel: "Phase Error Over Time",
         graphFreqLabel: "PLL Locked Frequency",
-        graphSpectrumLabel: "Frequency Spectrum (Tidal Components)",
+        graphSpectrumLabel: "Pendulum Spectrum (0-3 Hz)",
+        graphTidalSpectrumLabel: "Tidal Frequency Spectrum (20-25 µHz)",
         
         // Info Panel
         infoTitle: "About Phase-Locked Loops and Tidal Frequencies",
@@ -100,7 +101,8 @@ const translations = {
         // Graphs
         graphPhaseLabel: "Errore di Fase nel Tempo",
         graphFreqLabel: "Frequenza Agganciata del PLL",
-        graphSpectrumLabel: "Spettro di Frequenza (Componenti Mareali)",
+        graphSpectrumLabel: "Spettro del Pendolo (0-3 Hz)",
+        graphTidalSpectrumLabel: "Spettro Frequenze Mareali (20-25 µHz)",
         
         // Info Panel
         infoTitle: "Il Phase-Locked Loop e le Frequenze Mareali",
@@ -181,6 +183,7 @@ function applyTranslations() {
     document.getElementById('graph-phase-label').textContent = t.graphPhaseLabel;
     document.getElementById('graph-freq-label').textContent = t.graphFreqLabel;
     document.getElementById('graph-spectrum-label').textContent = t.graphSpectrumLabel;
+    document.getElementById('graph-tidal-spectrum-label').textContent = t.graphTidalSpectrumLabel;
     
     // Info panel
     document.getElementById('info-title').textContent = t.infoTitle;

@@ -31,7 +31,13 @@ let pendulumTime = 0;
 
 // Signal history for FFT
 let signalHistory = [];
-const maxSignalHistory = 512; // Power of 2 for FFT
+const maxSignalHistory = 512; // Power of 2 for high-freq FFT
+
+// Long-term signal history for tidal frequency analysis
+let tidalSignalHistory = [];
+const maxTidalHistory = 8192; // Much longer history for low frequencies
+let tidalSampleCounter = 0;
+const tidalSampleRate = 10; // Sample every N frames for tidal analysis for FFT
 
 // p5.js setup function
 function setup() {
@@ -77,7 +83,25 @@ function updatePendulum() {
     const dt = 0.016; // ~60 fps
     
     // Angular frequency (omega = 2 * pi * f)
-    const omega0 = 2 * Math.PI * pendulumParams.frequency;
+    let omega0 = 2 * Math.PI * pendulumParams.frequency;
+    
+    // Add tidal modulation to simulate real oceanographic conditions
+    // Main tidal components (scaled to be visible in simulation)
+    // M2: 22.344 µHz (period 12.42 hours) - scaled to simulation time
+    // S2: 23.148 µHz (period 12.00 hours)
+    const simulationTimeScale = 1000; // Speed up tidal effects for visualization
+    const tidalM2_freq = 22.344e-6 * simulationTimeScale; // Hz
+    const tidalS2_freq = 23.148e-6 * simulationTimeScale; // Hz
+    const tidalK1_freq = 11.607e-6 * simulationTimeScale; // Hz
+    
+    // Modulate the natural frequency with tidal components
+    // This simulates how tidal forces would affect the pendulum
+    const tidalModulation = 
+        0.02 * Math.sin(2 * Math.PI * tidalM2_freq * pendulumTime) +
+        0.015 * Math.sin(2 * Math.PI * tidalS2_freq * pendulumTime) +
+        0.01 * Math.sin(2 * Math.PI * tidalK1_freq * pendulumTime);
+    
+    omega0 = omega0 * (1 + tidalModulation);
     
     // Calculate damping from Q factor
     // Q = omega0 / (2 * zeta * omega0) = 1 / (2 * zeta)
@@ -97,10 +121,22 @@ function updatePendulum() {
     pendulumVelocity += acceleration * dt;
     pendulumAngle += pendulumVelocity * dt;
     
-    // Store signal for FFT (record angular position)
+    // Store signal for high-frequency FFT (record angular position)
     signalHistory.push(pendulumAngle);
     if (signalHistory.length > maxSignalHistory) {
         signalHistory.shift();
+    }
+    
+    // Store signal for tidal-frequency FFT (decimated for long-term analysis)
+    tidalSampleCounter++;
+    if (tidalSampleCounter >= tidalSampleRate) {
+        tidalSampleCounter = 0;
+        // Store instantaneous frequency deviation (proxy for tidal modulation)
+        const instantFreq = pendulumVelocity / (2 * Math.PI);
+        tidalSignalHistory.push(instantFreq);
+        if (tidalSignalHistory.length > maxTidalHistory) {
+            tidalSignalHistory.shift();
+        }
     }
     
     // Update time
@@ -343,11 +379,12 @@ function updateVCOFrequency(freq) {
 
 // Get PLL data for graphing
 function getPLLData() {
-    if (!pll) return { phaseError: [], frequency: [], signal: [] };
+    if (!pll) return { phaseError: [], frequency: [], signal: [], tidalSignal: [] };
     return {
         phaseError: pll.phaseErrorHistory,
         frequency: pll.freqHistory,
-        signal: signalHistory
+        signal: signalHistory,
+        tidalSignal: tidalSignalHistory
     };
 }
 
