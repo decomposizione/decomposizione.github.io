@@ -295,7 +295,18 @@ function drawInfo() {
     text(`Q Factor: ${pendulumParams.qFactor.toExponential(1)}`, 20, 100);
     text(`Length: ${pendulumParams.lengthCm} cm | Mass: ${pendulumParams.mass.toFixed(1)} kg`, 20, 120);
     if (pendulumParams.energyImpulse > 0) {
-        text(`Energy Impulse: ${pendulumParams.energyImpulse.toFixed(2)} J`, 20, 140);
+        // Format energy display with appropriate units
+        let energyText;
+        if (pendulumParams.energyImpulse < 1e-6) {
+            energyText = `${(pendulumParams.energyImpulse * 1e9).toFixed(1)} nJ`;
+        } else if (pendulumParams.energyImpulse < 1e-3) {
+            energyText = `${(pendulumParams.energyImpulse * 1e6).toFixed(1)} µJ`;
+        } else if (pendulumParams.energyImpulse < 1) {
+            energyText = `${(pendulumParams.energyImpulse * 1e3).toFixed(1)} mJ`;
+        } else {
+            energyText = `${pendulumParams.energyImpulse.toFixed(2)} J`;
+        }
+        text(`Energy Impulse: ${energyText}`, 20, 140);
     }
     
     // Lock quality indicator
