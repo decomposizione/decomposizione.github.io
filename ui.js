@@ -486,23 +486,21 @@ function drawSpectrum(ctx, signal) {
     ctx.stroke();
     
     // Get actual pendulum frequency from simulation
-    // Try to get from global pendulumParams, or use default
+    // Access via window.pendulumParams (exposed from sketch.js)
     let actualPendulumFreq = 1.0; // Default
-    if (typeof pendulumParams !== 'undefined') {
-        actualPendulumFreq = pendulumParams.frequency;
+    if (typeof window !== 'undefined' && window.pendulumParams) {
+        const params = window.pendulumParams;
+        actualPendulumFreq = params.frequency;
         
-        // Optionally calculate natural frequency from length
+        // Calculate natural frequency from physical length
         // T = 2π√(L/g), so f = 1/T = √(g/L)/(2π)
         const g = 9.81;
-        const lengthM = pendulumParams.lengthCm / 100;
+        const lengthM = params.lengthCm / 100;
         const naturalFreq = Math.sqrt(g / lengthM) / (2 * Math.PI);
         
-        // Use natural frequency if it's significantly different from user-set frequency
-        // This shows the physical relationship
-        if (Math.abs(naturalFreq - actualPendulumFreq) > 0.1) {
-            // Show both frequencies
-            actualPendulumFreq = naturalFreq; // Use natural for harmonics
-        }
+        // Use natural frequency for harmonics (more physically accurate)
+        // This shows the relationship between length and frequency
+        actualPendulumFreq = naturalFreq;
     }
     
     // Calculate harmonics based on actual pendulum frequency
