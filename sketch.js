@@ -19,7 +19,6 @@ let pendulumParams = {
 };
 
 // Track zero crossings for energy impulse
-let lastAngleSign = 0;
 let lastZeroCrossingTime = 0; // Track time of last zero crossing for period measurement
 
 // PLL parameters
@@ -135,6 +134,13 @@ function updatePendulumWithDt(dt) {
     // Update frequency parameter for display
     pendulumParams.frequency = naturalFreq;
     
+    // Calculate damping from Q factor BEFORE applying tidal modulation
+    // Q is a physical property of the pendulum and should not vary with tidal modulation
+    // Q = omega0 / (2 * zeta * omega0) = 1 / (2 * zeta)
+    // Therefore: zeta = 1 / (2 * Q)
+    const zeta = 1.0 / (2.0 * pendulumParams.qFactor);
+    const dampingCoeff = 2 * zeta * omega0; // Use natural omega0, not modulated
+    
     // Add tidal modulation to simulate real oceanographic conditions
     // User-controllable lunar frequency (200 µHz to 0.1 Hz)
     // All frequencies are scaled by simulationTimeScale for consistency
@@ -151,12 +157,6 @@ function updatePendulumWithDt(dt) {
     
     omega0 = omega0 * (1 + tidalModulation);
     
-    // Calculate damping from Q factor
-    // Q = omega0 / (2 * zeta * omega0) = 1 / (2 * zeta)
-    // Therefore: zeta = 1 / (2 * Q)
-    const zeta = 1.0 / (2.0 * pendulumParams.qFactor);
-    const dampingCoeff = 2 * zeta * omega0;
-    
     // Damped harmonic oscillator equation
     // d²θ/dt² = -ω₀² * sin(θ) - 2ζω₀ * dθ/dt
     const angleInRadians = pendulumAngle;
@@ -168,9 +168,16 @@ function updatePendulumWithDt(dt) {
     // Update velocity and position (Euler integration)
     pendulumVelocity += acceleration * dt;
     
+    // Store old angle before updating (for zero crossing detection)
+    const oldAngle = pendulumAngle;
+    pendulumAngle += pendulumVelocity * dt;
+    
     // Check for zero crossing and apply energy impulse
+    // Zero crossing occurs when angle changes sign
+    const oldAngleSign = Math.sign(oldAngle);
     const currentAngleSign = Math.sign(pendulumAngle);
-    if (lastAngleSign !== 0 && currentAngleSign !== 0 && lastAngleSign !== currentAngleSign) {
+    
+    if (oldAngleSign !== 0 && currentAngleSign !== 0 && oldAngleSign !== currentAngleSign) {
         // Zero crossing detected! This is when the electromagnet applies the impulse (PLL feedback)
         
         // Calculate period since last zero crossing (this is the sampling period)
@@ -218,9 +225,6 @@ function updatePendulumWithDt(dt) {
             pendulumVelocity = Math.sign(pendulumVelocity) * velocityMagnitude;
         }
     }
-    lastAngleSign = currentAngleSign;
-    
-    pendulumAngle += pendulumVelocity * dt;
     
     // Update time (dt is already small and constant, speed is handled by number of steps per frame)
     pendulumTime += dt;
@@ -414,7 +418,6 @@ function resetPendulum() {
     pendulumAngle = radians(0.01);
     pendulumVelocity = 0;
     pendulumTime = 0;
-    lastAngleSign = Math.sign(pendulumAngle); // Initialize with current angle sign
     lastZeroCrossingTime = 0; // Reset zero crossing time tracker
     lastSampleTime = 0; // Reset sampling time tracker
     
