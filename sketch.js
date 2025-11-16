@@ -488,6 +488,7 @@ function getPLLData() {
     };
 }
 
-// Make simulationPaused accessible globally for i18n
+// Make simulationPaused and pendulumParams accessible globally for UI
 window.simulationPaused = simulationPaused;
+window.pendulumParams = pendulumParams;
 
