@@ -339,7 +339,7 @@ function resetPendulum() {
     pendulumAngle = radians(0.01);
     pendulumVelocity = 0;
     pendulumTime = 0;
-    lastAngleSign = 0; // Reset zero crossing tracker
+    lastAngleSign = Math.sign(pendulumAngle); // Initialize with current angle sign
     
     // Apply initial energy impulse if enabled
     if (pendulumParams.energyImpulse > 0) {
@@ -350,7 +350,26 @@ function resetPendulum() {
         // Calculate initial velocity from energy impulse
         // E = 0.5 * I * ω², so ω = √(2E/I)
         const initialAngularVelocity = Math.sqrt(2 * pendulumParams.energyImpulse / momentOfInertia);
-        pendulumVelocity = initialAngularVelocity;
+        
+        // Ensure minimum visible velocity if impulse is very small
+        // For very small impulses, give a small initial push to make it visible
+        if (initialAngularVelocity < 0.001) {
+            // Add a small initial velocity to make movement visible
+            pendulumVelocity = 0.001; // Small but visible initial velocity
+        } else {
+            pendulumVelocity = initialAngularVelocity;
+        }
+    } else {
+        // Even without impulse, give a tiny initial velocity from the small angle
+        // This ensures the pendulum will start moving due to gravity
+        const g = 9.81;
+        const lengthM = pendulumParams.lengthCm / 100;
+        const omega0 = Math.sqrt(g / lengthM);
+        // Small initial velocity from potential energy: v ≈ √(2gh) where h = L(1-cos(θ))
+        const smallAngle = radians(0.01);
+        const height = lengthM * (1 - Math.cos(smallAngle));
+        const initialVel = Math.sqrt(2 * g * height) / lengthM; // Convert to angular
+        pendulumVelocity = initialVel * 0.1; // Scale down for very small angle
     }
 }
 
