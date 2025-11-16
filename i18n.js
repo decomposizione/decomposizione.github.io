@@ -30,7 +30,7 @@ const translations = {
         tooltipTidalSpectrumCenter: "Center frequency for tidal spectrum display. Adjust to explore different tidal components",
         tooltipLength: "Physical length of the pendulum rod. Affects natural frequency: T = 2π√(L/g)",
         tooltipMass: "Mass of the pendulum bob. Affects moment of inertia and energy calculations",
-        tooltipEnergy: "Energy added to the pendulum each time it passes through zero (vertical position). Simulates external driving force",
+        tooltipEnergy: "Energy added to the pendulum each time it passes through zero (vertical position). Range: 1 nJ to 5 J. Simulates external driving force",
         
         // Buttons
         btnReset: "Reset Simulation",
@@ -109,7 +109,7 @@ const translations = {
         tooltipTidalSpectrumCenter: "Frequenza centrale per visualizzazione spettro mareale. Regola per esplorare diverse componenti mareali",
         tooltipLength: "Lunghezza fisica dell'asta del pendolo. Influenza la frequenza naturale: T = 2π√(L/g)",
         tooltipMass: "Massa del peso del pendolo. Influenza il momento d'inerzia e i calcoli dell'energia",
-        tooltipEnergy: "Energia aggiunta al pendolo ogni volta che passa per lo zero (posizione verticale). Simula una forza esterna di guida",
+        tooltipEnergy: "Energia aggiunta al pendolo ogni volta che passa per lo zero (posizione verticale). Range: 1 nJ a 5 J. Simula una forza esterna di guida",
         
         // Buttons
         btnReset: "Riavvia Simulazione",

@@ -14,7 +14,7 @@ let pendulumParams = {
     length: 150,         // visual length in pixels
     lengthCm: 150,       // physical length in cm
     mass: 1.0,           // mass in kg
-    energyImpulse: 0.0,  // energy impulse in Joules when passing zero
+    energyImpulse: 10e-9,  // energy impulse in Joules when passing zero (default: 10 nJ)
     lunarFreq: 22.344e-6 // Lunar/tidal modulation frequency (Hz)
 };
 
@@ -379,10 +379,23 @@ function normalizeAngle(angle) {
 
 // Reset pendulum to initial conditions
 function resetPendulum() {
-    pendulumAngle = radians(pendulumParams.amplitude);
+    // Start from 0.01 degrees (1 centesimo di grado)
+    pendulumAngle = radians(0.01);
     pendulumVelocity = 0;
     pendulumTime = 0;
     lastAngleSign = 0; // Reset zero crossing tracker
+    
+    // Apply initial energy impulse if enabled
+    if (pendulumParams.energyImpulse > 0) {
+        const g = 9.81;
+        const lengthM = pendulumParams.lengthCm / 100;
+        const momentOfInertia = pendulumParams.mass * lengthM * lengthM;
+        
+        // Calculate initial velocity from energy impulse
+        // E = 0.5 * I * ω², so ω = √(2E/I)
+        const initialAngularVelocity = Math.sqrt(2 * pendulumParams.energyImpulse / momentOfInertia);
+        pendulumVelocity = initialAngularVelocity;
+    }
 }
 
 // Reset entire simulation

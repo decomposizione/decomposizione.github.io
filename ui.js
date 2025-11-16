@@ -131,14 +131,29 @@ function setupSliders() {
         updatePendulumMass(value);
     });
     
-    // Energy Impulse Slider
+    // Energy Impulse Slider (logarithmic scale: 1 nJ to 5 J)
     const energySlider = document.getElementById('energy-impulse');
     const energyValue = document.getElementById('value-energy');
     
     energySlider.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        energyValue.textContent = value.toFixed(1) + ' J';
-        updateEnergyImpulse(value);
+        const exponent = parseFloat(e.target.value);
+        const energyJ = Math.pow(10, exponent);
+        
+        // Display in appropriate units
+        if (energyJ < 1e-9) {
+            // Shouldn't happen (min is 1 nJ), but handle it
+            energyValue.textContent = (energyJ * 1e12).toFixed(1) + ' pJ';
+        } else if (energyJ < 1e-6) {
+            energyValue.textContent = (energyJ * 1e9).toFixed(1) + ' nJ';
+        } else if (energyJ < 1e-3) {
+            energyValue.textContent = (energyJ * 1e6).toFixed(1) + ' µJ';
+        } else if (energyJ < 1) {
+            energyValue.textContent = (energyJ * 1e3).toFixed(1) + ' mJ';
+        } else {
+            energyValue.textContent = energyJ.toFixed(2) + ' J';
+        }
+        
+        updateEnergyImpulse(energyJ);
     });
 }
 
