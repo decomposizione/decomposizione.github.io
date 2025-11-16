@@ -14,7 +14,7 @@ let pendulumParams = {
     length: 150,         // visual length in pixels
     lengthCm: 150,       // physical length in cm
     mass: 1.0,           // mass in kg
-    energyImpulse: 0.1,  // energy impulse in Joules when passing zero (default: 100 mJ)
+    energyImpulse: 0.001,  // energy impulse in Joules when passing zero (default: 1 mJ)
     lunarFreq: 22.344e-6 // Lunar/tidal modulation frequency (Hz)
 };
 
