@@ -485,18 +485,69 @@ function drawSpectrum(ctx, signal) {
     }
     ctx.stroke();
     
-    // Draw harmonics markers
-    const fundamentalFreq = 1.0; // Hz
-    const harmonics = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+    // Get actual pendulum frequency from simulation
+    // Try to get from global pendulumParams, or use default
+    let actualPendulumFreq = 1.0; // Default
+    if (typeof pendulumParams !== 'undefined') {
+        actualPendulumFreq = pendulumParams.frequency;
+        
+        // Optionally calculate natural frequency from length
+        // T = 2π√(L/g), so f = 1/T = √(g/L)/(2π)
+        const g = 9.81;
+        const lengthM = pendulumParams.lengthCm / 100;
+        const naturalFreq = Math.sqrt(g / lengthM) / (2 * Math.PI);
+        
+        // Use natural frequency if it's significantly different from user-set frequency
+        // This shows the physical relationship
+        if (Math.abs(naturalFreq - actualPendulumFreq) > 0.1) {
+            // Show both frequencies
+            actualPendulumFreq = naturalFreq; // Use natural for harmonics
+        }
+    }
+    
+    // Calculate harmonics based on actual pendulum frequency
+    const harmonics = [
+        actualPendulumFreq * 0.5,  // Subharmonic
+        actualPendulumFreq,        // Fundamental
+        actualPendulumFreq * 1.5,  // 3/2 harmonic
+        actualPendulumFreq * 2.0,  // 2nd harmonic
+        actualPendulumFreq * 2.5,  // 5/2 harmonic
+        actualPendulumFreq * 3.0   // 3rd harmonic
+    ];
     
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
     
-    harmonics.forEach((harm) => {
+    // Draw fundamental frequency marker (highlighted)
+    if (actualPendulumFreq >= minFreq && actualPendulumFreq <= maxFreq) {
+        const fundX = ((actualPendulumFreq - minFreq) / (maxFreq - minFreq)) * width;
+        
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        ctx.moveTo(fundX, 0);
+        ctx.lineTo(fundX, height - 30);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(`${actualPendulumFreq.toFixed(3)} Hz`, fundX, 25);
+        ctx.font = '10px sans-serif';
+        ctx.fillText('Fundamental', fundX, 38);
+    }
+    
+    // Draw other harmonics
+    harmonics.forEach((harm, idx) => {
+        // Skip fundamental (already drawn)
+        if (Math.abs(harm - actualPendulumFreq) < 0.01) return;
+        
         if (harm >= minFreq && harm <= maxFreq) {
             const x = ((harm - minFreq) / (maxFreq - minFreq)) * width;
             
             ctx.strokeStyle = '#95a5a6';
+            ctx.lineWidth = 1;
             ctx.setLineDash([3, 3]);
             ctx.beginPath();
             ctx.moveTo(x, 0);
@@ -505,20 +556,21 @@ function drawSpectrum(ctx, signal) {
             ctx.setLineDash([]);
             
             ctx.fillStyle = '#7f8c8d';
-            ctx.fillText(`${harm.toFixed(1)} Hz`, x, height - 15);
+            ctx.font = '10px sans-serif';
+            ctx.fillText(`${harm.toFixed(2)} Hz`, x, height - 15);
         }
     });
     
-    // Title
+    // Title with actual frequency
     ctx.fillStyle = '#2c3e50';
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Pendulum carrier frequency and harmonics', width / 2, 15);
+    ctx.fillText(`Pendulum spectrum (f₀ = ${actualPendulumFreq.toFixed(3)} Hz)`, width / 2, 15);
     
-    // Center marker
+    // Center marker (user-defined center frequency)
     if (spectrumCenterFreq >= minFreq && spectrumCenterFreq <= maxFreq) {
         const centerX = ((spectrumCenterFreq - minFreq) / (maxFreq - minFreq)) * width;
-        ctx.strokeStyle = '#e74c3c';
+        ctx.strokeStyle = '#9b59b6';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
         ctx.beginPath();
@@ -526,6 +578,10 @@ function drawSpectrum(ctx, signal) {
         ctx.lineTo(centerX, height - 30);
         ctx.stroke();
         ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#9b59b6';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('CENTER', centerX, height - 45);
     }
     
     // Axes

@@ -62,8 +62,7 @@ function setup() {
     // Initialize pendulum
     resetPendulum();
     
-    // Set initial angle
-    pendulumAngle = radians(pendulumParams.amplitude);
+    // Initial angle is set in resetPendulum() to 0.01 degrees
 }
 
 // p5.js draw function - called every frame
