@@ -207,6 +207,7 @@ let phaseErrorCtx = null;
 let frequencyCtx = null;
 let spectrumCtx = null;
 let tidalSpectrumCtx = null;
+let tidalPhaseCtx = null;
 
 // User-controllable spectrum parameters
 let spectrumCenterFreq = 1.5; // Hz for pendulum spectrum
@@ -218,17 +219,20 @@ function initializeGraphs() {
     const freqCanvas = document.getElementById('frequency-graph');
     const spectrumCanvas = document.getElementById('spectrum-graph');
     const tidalSpectrumCanvas = document.getElementById('tidal-spectrum-graph');
+    const tidalPhaseCanvas = document.getElementById('tidal-phase-graph');
     
     phaseErrorCtx = phaseCanvas.getContext('2d');
     frequencyCtx = freqCanvas.getContext('2d');
     spectrumCtx = spectrumCanvas.getContext('2d');
     tidalSpectrumCtx = tidalSpectrumCanvas.getContext('2d');
+    tidalPhaseCtx = tidalPhaseCanvas.getContext('2d');
     
     // Set canvas dimensions
     resizeGraphCanvas(phaseCanvas);
     resizeGraphCanvas(freqCanvas);
     resizeGraphCanvas(spectrumCanvas);
     resizeGraphCanvas(tidalSpectrumCanvas);
+    resizeGraphCanvas(tidalPhaseCanvas);
     
     // Start animation loop for graphs
     requestAnimationFrame(updateGraphs);
@@ -261,6 +265,10 @@ function clearGraphs() {
     if (tidalSpectrumCtx) {
         const canvas = tidalSpectrumCtx.canvas;
         tidalSpectrumCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    if (tidalPhaseCtx) {
+        const canvas = tidalPhaseCtx.canvas;
+        tidalPhaseCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
 
@@ -295,6 +303,7 @@ function updateGraphs() {
         // Update tidal spectrum graph
         if (data.tidalSignal && data.tidalSignal.length > 0) {
             drawTidalSpectrum(tidalSpectrumCtx, data.tidalSignal);
+            drawTidalPhase(tidalPhaseCtx, data.tidalSignal);
         }
     }
     
@@ -874,13 +883,249 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.restore();
 }
 
+// Draw tidal frequency phase (20-25 µHz range)
+function drawTidalPhase(ctx, signal) {
+    const canvas = ctx.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Background
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Update every 64 samples, but use buffer of 65536 samples
+    if (signal.length < 64) {
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Accumulating data for phase analysis...', width / 2, height / 2);
+        ctx.font = '12px sans-serif';
+        ctx.fillText(`${signal.length} / 64 samples (updates every 64, buffer: 65536)`, width / 2, height / 2 + 20);
+        return;
+    }
+    
+    // Prepare signal for FFT - use up to 65536 samples from buffer
+    // Use largest power of 2 that fits: 65536 = 2^16
+    const n = 65536; // FFT size matching buffer size
+    const real = new Array(n).fill(0);
+    const imag = new Array(n).fill(0);
+    
+    // Apply Hanning window and copy signal (use most recent 65536 samples)
+    const signalLength = signal.length;
+    const actualLength = Math.min(signalLength, n);
+    const startIdx = signalLength > n ? signalLength - n : 0; // Start index for samples used in FFT
+    
+    for (let i = 0; i < actualLength; i++) {
+        const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / n)); // Use n for window length, not actualLength
+        // Use most recent samples if buffer is full, otherwise from start
+        const signalIdx = startIdx + i;
+        real[i] = signal[signalIdx] * window;
+    }
+    // Zero-pad if buffer not yet full
+    for (let i = actualLength; i < n; i++) {
+        real[i] = 0;
+    }
+    
+    // Perform FFT
+    fft(real, imag);
+    
+    // Calculate phase: atan2(imag, real)
+    const phase = new Array(n / 2);
+    for (let i = 0; i < n / 2; i++) {
+        phase[i] = Math.atan2(imag[i], real[i]);
+    }
+    
+    // Sampling parameters for tidal signal
+    // Sampling happens at zero crossings (when electromagnet impulse is applied)
+    // The effective sampling frequency is calculated from ALL periods from first to last sample
+    // Starting from the 4th sample (skip first 3 which may be less accurate)
+    let fs = 0.4; // Default fallback
+    if (typeof getPLLData === 'function') {
+        const data = getPLLData();
+        if (data.tidalPeriods && data.tidalPeriods.length > 3) {
+            // Use all periods from 4th sample onwards (index 3) to the last
+            const periodsToUse = data.tidalPeriods.slice(3);
+            const avgPeriod = periodsToUse.reduce((a, b) => a + b, 0) / periodsToUse.length;
+            // Effective sampling frequency = 1 / average period
+            fs = 1.0 / avgPeriod;
+        } else if (data.tidalPeriods && data.tidalPeriods.length > 0) {
+            // If we have less than 4 samples, use all available (but this is less accurate)
+            const avgPeriod = data.tidalPeriods.reduce((a, b) => a + b, 0) / data.tidalPeriods.length;
+            fs = 1.0 / avgPeriod;
+        } else {
+            // Fallback to natural frequency if no periods measured yet
+            if (typeof window !== 'undefined' && window.pendulumParams) {
+                const params = window.pendulumParams;
+                const g = 9.81;
+                const lengthM = params.lengthCm / 100;
+                fs = Math.sqrt(g / lengthM) / (2 * Math.PI);
+            }
+        }
+    }
+    
+    // Tidal frequency range (in Hz)
+    const simulationTimeScale = 1000; // Must match the scale in sketch.js
+    
+    // Use user-defined center frequency
+    const centerFreq = tidalSpectrumCenterFreq * simulationTimeScale;
+    const freqRange = 20e-6 * simulationTimeScale; // Display range width
+    const displayMinFreq = Math.max(1e-6 * simulationTimeScale, centerFreq - freqRange / 2);
+    const displayMaxFreq = centerFreq + freqRange / 2;
+    
+    // Find indices corresponding to display range
+    const displayMinBin = Math.floor(displayMinFreq * n / fs);
+    const displayMaxBin = Math.ceil(displayMaxFreq * n / fs);
+    
+    // Draw phase spectrum in tidal range
+    ctx.strokeStyle = '#9b59b6';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    let firstPoint = true;
+    for (let i = displayMinBin; i < displayMaxBin; i++) {
+        const freq = i * fs / n;
+        const x = ((freq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+        // Phase is in radians, map from [-π, π] to [height - 40, 30]
+        const y = height - 40 - ((phase[i] + Math.PI) / (2 * Math.PI)) * (height - 70);
+        
+        if (firstPoint) {
+            ctx.moveTo(x, y);
+            firstPoint = false;
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Draw zero phase line
+    const zeroPhaseY = height - 40 - (Math.PI / (2 * Math.PI)) * (height - 70);
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, zeroPhaseY);
+    ctx.lineTo(width, zeroPhaseY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw tidal component markers
+    const actualLunarFreq = (typeof pendulumParams !== 'undefined') ? pendulumParams.lunarFreq : 22.344e-6;
+    const tidalComponents = [
+        { name: 'K1', freq: 11.607e-6, period: 23.93, color: '#2ecc71' },
+        { name: 'O1', freq: 11.381e-6, period: 25.82, color: '#f39c12' },
+        { name: 'M2', freq: actualLunarFreq, period: 1/(actualLunarFreq * 3600), color: '#e74c3c', userSet: true },
+        { name: 'S2', freq: 23.148e-6, period: 12.00, color: '#3498db' }
+    ];
+    
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    
+    tidalComponents.forEach(component => {
+        const scaledFreq = component.freq * simulationTimeScale;
+        if (scaledFreq >= displayMinFreq && scaledFreq <= displayMaxFreq) {
+            const x = ((scaledFreq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+            
+            // Vertical line
+            ctx.strokeStyle = component.color;
+            ctx.setLineDash([5, 3]);
+            ctx.lineWidth = component.userSet ? 3 : 2;
+            ctx.beginPath();
+            ctx.moveTo(x, 30);
+            ctx.lineTo(x, height - 40);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Label
+            ctx.fillStyle = component.color;
+            ctx.font = component.userSet ? 'bold 14px sans-serif' : 'bold 12px sans-serif';
+            ctx.fillText(component.name, x, 20);
+        }
+    });
+    
+    // Center marker (user-defined center)
+    const centerX = ((tidalSpectrumCenterFreq * simulationTimeScale - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+    if (centerX >= 0 && centerX <= width) {
+        ctx.strokeStyle = '#9b59b6';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, 30);
+        ctx.lineTo(centerX, height - 40);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#9b59b6';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('CENTER', centerX, 45);
+    }
+    
+    // Title
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Phase of tidal frequencies (M2, S2, K1, O1)', 10, 15);
+    
+    // Axes
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, height - 40);
+    ctx.lineTo(width, height - 40);
+    ctx.stroke();
+    
+    // X-axis labels - dynamically adjust based on display range
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    
+    // Calculate appropriate tick marks
+    const rangeUHz = (displayMaxFreq - displayMinFreq) / simulationTimeScale * 1e6;
+    const numTicks = 5;
+    const tickSpacing = rangeUHz / (numTicks - 1);
+    
+    for (let i = 0; i < numTicks; i++) {
+        const freq_uHz = (displayMinFreq / simulationTimeScale * 1e6) + (i * tickSpacing);
+        const scaledFreq = freq_uHz * 1e-6 * simulationTimeScale;
+        const x = ((scaledFreq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+        
+        if (freq_uHz < 1000) {
+            ctx.fillText(`${freq_uHz.toFixed(0)}`, x, height - 3);
+        } else {
+            ctx.fillText(`${(freq_uHz / 1000).toFixed(1)}`, x, height - 3);
+        }
+    }
+    
+    // Y-axis labels
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('π', 5, 30);
+    ctx.fillText('0', 5, zeroPhaseY + 3);
+    ctx.fillText('-π', 5, height - 40);
+    
+    // Y-axis label
+    ctx.save();
+    ctx.translate(15, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Phase (rad)', 0, 0);
+    ctx.restore();
+}
+
 // Handle window resize
 window.addEventListener('resize', () => {
-    if (phaseErrorCtx && frequencyCtx && spectrumCtx && tidalSpectrumCtx) {
+    if (phaseErrorCtx && frequencyCtx && spectrumCtx && tidalSpectrumCtx && tidalPhaseCtx) {
         resizeGraphCanvas(phaseErrorCtx.canvas);
         resizeGraphCanvas(frequencyCtx.canvas);
         resizeGraphCanvas(spectrumCtx.canvas);
         resizeGraphCanvas(tidalSpectrumCtx.canvas);
+        resizeGraphCanvas(tidalPhaseCtx.canvas);
     }
 });
 
