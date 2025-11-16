@@ -69,6 +69,15 @@
                     <span id="value-vco" class="value-display">0.80</span>
                 </div>
 
+                <div class="control-group">
+                    <label for="lunar-freq" id="label-lunar">
+                        Lunar Modulation Frequency
+                        <span class="info-icon" title="Frequency of tidal modulation (M2 component)">ⓘ</span>
+                    </label>
+                    <input type="range" id="lunar-freq" min="-3.7" max="-1" step="0.01" value="-2.65">
+                    <span id="value-lunar" class="value-display">22.3 µHz</span>
+                </div>
+
                 <div class="button-group">
                     <button id="btn-reset" class="btn btn-primary">Reset Simulation</button>
                     <button id="btn-pause" class="btn btn-secondary">Pause</button>
@@ -130,6 +139,189 @@
                     Tidal frequencies are extremely stable and can be measured using PLL techniques. The main tidal constituents 
                     (M2, S2, K1, O1) have known periods, and PLLs can extract these specific frequency components from noisy tidal gauge data.
                 </p>
+            </div>
+        </section>
+
+        <!-- System Representation and Formulas -->
+        <section class="system-panel">
+            <h2 id="system-title">System Representation & Mathematical Model</h2>
+            
+            <div class="system-diagram">
+                <h3 id="pll-diagram-title">Phase-Locked Loop Block Diagram</h3>
+                <div class="diagram-box">
+                    <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Input Signal -->
+                        <text x="10" y="105" font-size="14" fill="#2c3e50">θ_in(t)</text>
+                        <line x1="60" y1="100" x2="100" y2="100" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- Phase Detector -->
+                        <rect x="100" y="70" width="120" height="60" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                        <text x="160" y="95" font-size="12" fill="white" text-anchor="middle">Phase</text>
+                        <text x="160" y="110" font-size="12" fill="white" text-anchor="middle">Detector</text>
+                        <circle cx="160" cy="130" r="15" fill="white" stroke="#2c3e50" stroke-width="2"/>
+                        <line x1="150" y1="130" x2="170" y2="130" stroke="#2c3e50" stroke-width="2"/>
+                        <line x1="160" y1="120" x2="160" y2="140" stroke="#2c3e50" stroke-width="2"/>
+                        
+                        <!-- Error Signal -->
+                        <line x1="220" y1="100" x2="270" y2="100" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <text x="245" y="90" font-size="11" fill="#e74c3c">ε(t)</text>
+                        
+                        <!-- Loop Filter -->
+                        <rect x="270" y="70" width="120" height="60" fill="#9b59b6" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                        <text x="330" y="95" font-size="12" fill="white" text-anchor="middle">Loop Filter</text>
+                        <text x="330" y="110" font-size="12" fill="white" text-anchor="middle">(PI)</text>
+                        
+                        <!-- Control Voltage -->
+                        <line x1="390" y1="100" x2="440" y2="100" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <text x="415" y="90" font-size="11" fill="#27ae60">v_c(t)</text>
+                        
+                        <!-- VCO -->
+                        <rect x="440" y="70" width="120" height="60" fill="#e67e22" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                        <text x="500" y="95" font-size="12" fill="white" text-anchor="middle">VCO</text>
+                        <text x="500" y="110" font-size="12" fill="white" text-anchor="middle">(ω = ω₀ + K·v_c)</text>
+                        
+                        <!-- Output -->
+                        <line x1="560" y1="100" x2="610" y2="100" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <text x="620" y="105" font-size="14" fill="#2c3e50">θ_out(t)</text>
+                        
+                        <!-- Feedback -->
+                        <line x1="580" y1="100" x2="580" y2="150" stroke="#2c3e50" stroke-width="2"/>
+                        <line x1="580" y1="150" x2="160" y2="150" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- Arrow marker definition -->
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <polygon points="0 0, 10 3, 0 6" fill="#2c3e50" />
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="formulas-section">
+                <h3 id="formulas-title">Mathematical Formulas</h3>
+                
+                <div class="formula-group">
+                    <h4 id="pendulum-eq-title">1. Damped Pendulum Equation</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            d²θ/dt² + 2ζω₀(dθ/dt) + ω₀² sin(θ) = 0
+                        </p>
+                        <p class="formula-desc" id="pendulum-desc">
+                            Where: ζ = 1/(2Q) is damping ratio, ω₀ = 2πf₀ is natural angular frequency, Q is quality factor
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="tidal-mod-title">2. Tidal Modulation</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            ω(t) = ω₀ [1 + Σ A_i sin(2πf_tidal,i · t)]
+                        </p>
+                        <p class="formula-desc" id="tidal-desc">
+                            Frequency modulated by tidal components: M2 (22.34 µHz), S2 (23.15 µHz), K1 (11.61 µHz), O1 (11.38 µHz)
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="phase-det-title">3. Phase Detector</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            ε(t) = θ_in(t) - θ_out(t)  [wrapped to [-π, π]]
+                        </p>
+                        <p class="formula-desc" id="phase-det-desc">
+                            Measures phase difference between input and VCO output
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="loop-filter-title">4. Loop Filter (PI Controller)</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            v_c(t) = K_p · ε(t) + K_i · ∫ε(τ)dτ
+                        </p>
+                        <p class="formula-desc" id="loop-filter-desc">
+                            K_p = loop gain (proportional), K_i = integral gain. Provides Type-2 loop for zero steady-state error.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="vco-title">5. Voltage Controlled Oscillator</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            dθ_out/dt = ω₀ + K_VCO · v_c(t)
+                        </p>
+                        <p class="formula-desc" id="vco-desc">
+                            VCO frequency adjusts based on control voltage. K_VCO is the VCO gain (Hz/V).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="lock-condition-title">6. Lock Condition</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            |ε(t)| &lt; ε_threshold  for  t &gt; t_lock
+                        </p>
+                        <p class="formula-desc" id="lock-desc">
+                            PLL is considered locked when phase error remains below threshold (0.3 rad) for sufficient time.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="quality-factor-title">7. Quality Factor</h4>
+                    <div class="formula-box">
+                        <p class="formula">
+                            Q = ω₀/(2ζω₀) = 1/(2ζ) = f₀/Δf
+                        </p>
+                        <p class="formula-desc" id="quality-desc">
+                            Higher Q means lower damping and longer oscillations. For tidal measurements, Q can be 10⁶ or higher.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-group">
+                    <h4 id="tidal-freqs-title">8. Tidal Frequencies</h4>
+                    <div class="formula-box">
+                        <table class="tidal-table">
+                            <tr>
+                                <th>Component</th>
+                                <th>Frequency (µHz)</th>
+                                <th>Period (hours)</th>
+                                <th>Origin</th>
+                            </tr>
+                            <tr>
+                                <td><strong>M2</strong></td>
+                                <td>22.344</td>
+                                <td>12.42</td>
+                                <td id="m2-origin">Principal lunar semidiurnal</td>
+                            </tr>
+                            <tr>
+                                <td><strong>S2</strong></td>
+                                <td>23.148</td>
+                                <td>12.00</td>
+                                <td id="s2-origin">Principal solar semidiurnal</td>
+                            </tr>
+                            <tr>
+                                <td><strong>K1</strong></td>
+                                <td>11.607</td>
+                                <td>23.93</td>
+                                <td id="k1-origin">Lunisolar diurnal</td>
+                            </tr>
+                            <tr>
+                                <td><strong>O1</strong></td>
+                                <td>11.381</td>
+                                <td>25.82</td>
+                                <td id="o1-origin">Lunar diurnal</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
             </div>
         </section>
     </main>

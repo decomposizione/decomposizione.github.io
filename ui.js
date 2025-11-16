@@ -60,6 +60,26 @@ function setupSliders() {
         vcoValue.textContent = value.toFixed(2);
         updateVCOFrequency(value);
     });
+    
+    // Lunar Modulation Frequency Slider (logarithmic scale)
+    const lunarSlider = document.getElementById('lunar-freq');
+    const lunarValue = document.getElementById('value-lunar');
+    
+    lunarSlider.addEventListener('input', (e) => {
+        const exponent = parseFloat(e.target.value);
+        const freqHz = Math.pow(10, exponent);
+        
+        // Display in appropriate units
+        if (freqHz < 1e-3) {
+            lunarValue.textContent = (freqHz * 1e6).toFixed(1) + ' µHz';
+        } else if (freqHz < 1) {
+            lunarValue.textContent = (freqHz * 1e3).toFixed(2) + ' mHz';
+        } else {
+            lunarValue.textContent = freqHz.toFixed(3) + ' Hz';
+        }
+        
+        updateLunarFrequency(freqHz);
+    });
 }
 
 // Setup button controls
@@ -494,8 +514,22 @@ function drawTidalSpectrum(ctx, signal) {
     const minBin = Math.floor(minFreq * n / fs);
     const maxBin = Math.ceil(maxFreq * n / fs);
     
+    // Adjust range based on user-set lunar frequency
+    // Get actual lunar frequency from pendulum params
+    const actualLunarFreq = (typeof pendulumParams !== 'undefined') ? pendulumParams.lunarFreq : 22.344e-6;
+    
+    // Center the display around the user's lunar frequency
+    const freqRange = 20e-6 * simulationTimeScale; // Display range
+    const centerFreq = actualLunarFreq * simulationTimeScale;
+    const displayMinFreq = Math.max(1e-6 * simulationTimeScale, centerFreq - freqRange / 2);
+    const displayMaxFreq = centerFreq + freqRange / 2;
+    
+    // Find indices corresponding to display range
+    const displayMinBin = Math.floor(displayMinFreq * n / fs);
+    const displayMaxBin = Math.ceil(displayMaxFreq * n / fs);
+    
     // Find max in tidal range for normalization
-    const tidalMagnitudes = magnitude.slice(minBin, maxBin);
+    const tidalMagnitudes = magnitude.slice(displayMinBin, displayMaxBin);
     const maxMag = Math.max(...tidalMagnitudes, 1e-10);
     
     // Draw spectrum in tidal range
@@ -504,10 +538,10 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.beginPath();
     
     let firstPoint = true;
-    for (let i = minBin; i < maxBin; i++) {
+    for (let i = displayMinBin; i < displayMaxBin; i++) {
         const freq = i * fs / n;
         const freqMicroHz = freq / simulationTimeScale * 1e6; // Convert to real µHz
-        const x = ((freq - minFreq) / (maxFreq - minFreq)) * width;
+        const x = ((freq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
         const mag = magnitude[i] / maxMag;
         const y = height - 40 - (mag * (height - 60));
         
@@ -524,7 +558,7 @@ function drawTidalSpectrum(ctx, signal) {
     const tidalComponents = [
         { name: 'K1', freq: 11.607e-6, period: 23.93, color: '#2ecc71' },
         { name: 'O1', freq: 11.381e-6, period: 25.82, color: '#f39c12' },
-        { name: 'M2', freq: 22.344e-6, period: 12.42, color: '#e74c3c' },
+        { name: 'M2', freq: actualLunarFreq, period: 1/(actualLunarFreq * 3600), color: '#e74c3c', userSet: true },
         { name: 'S2', freq: 23.148e-6, period: 12.00, color: '#3498db' }
     ];
     
@@ -533,13 +567,13 @@ function drawTidalSpectrum(ctx, signal) {
     
     tidalComponents.forEach(component => {
         const scaledFreq = component.freq * simulationTimeScale;
-        if (scaledFreq >= minFreq && scaledFreq <= maxFreq) {
-            const x = ((scaledFreq - minFreq) / (maxFreq - minFreq)) * width;
+        if (scaledFreq >= displayMinFreq && scaledFreq <= displayMaxFreq) {
+            const x = ((scaledFreq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
             
             // Vertical line
             ctx.strokeStyle = component.color;
             ctx.setLineDash([5, 3]);
-            ctx.lineWidth = 2;
+            ctx.lineWidth = component.userSet ? 3 : 2;
             ctx.beginPath();
             ctx.moveTo(x, 30);
             ctx.lineTo(x, height - 40);
@@ -548,11 +582,24 @@ function drawTidalSpectrum(ctx, signal) {
             
             // Label
             ctx.fillStyle = component.color;
-            ctx.font = 'bold 12px sans-serif';
+            ctx.font = component.userSet ? 'bold 14px sans-serif' : 'bold 12px sans-serif';
             ctx.fillText(component.name, x, 20);
             ctx.font = '10px sans-serif';
-            ctx.fillText(`${component.freq * 1e6} µHz`, x, height - 25);
-            ctx.fillText(`T=${component.period.toFixed(2)}h`, x, height - 12);
+            
+            // Format frequency display
+            const displayFreq = component.freq * 1e6;
+            if (displayFreq < 1000) {
+                ctx.fillText(`${displayFreq.toFixed(1)} µHz`, x, height - 25);
+            } else {
+                ctx.fillText(`${(displayFreq / 1000).toFixed(2)} mHz`, x, height - 25);
+            }
+            
+            const periodHours = component.period;
+            if (periodHours < 48) {
+                ctx.fillText(`T=${periodHours.toFixed(2)}h`, x, height - 12);
+            } else {
+                ctx.fillText(`T=${(periodHours / 24).toFixed(1)}d`, x, height - 12);
+            }
         }
     });
     
@@ -570,18 +617,27 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.lineTo(width, height - 40);
     ctx.stroke();
     
-    // X-axis labels
+    // X-axis labels - dynamically adjust based on display range
     ctx.fillStyle = '#7f8c8d';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    const xLabels = [10, 15, 20, 25, 30];
-    xLabels.forEach(freq_uHz => {
+    
+    // Calculate appropriate tick marks
+    const rangeUHz = (displayMaxFreq - displayMinFreq) / simulationTimeScale * 1e6;
+    const numTicks = 5;
+    const tickSpacing = rangeUHz / (numTicks - 1);
+    
+    for (let i = 0; i < numTicks; i++) {
+        const freq_uHz = (displayMinFreq / simulationTimeScale * 1e6) + (i * tickSpacing);
         const scaledFreq = freq_uHz * 1e-6 * simulationTimeScale;
-        if (scaledFreq >= minFreq && scaledFreq <= maxFreq) {
-            const x = ((scaledFreq - minFreq) / (maxFreq - minFreq)) * width;
-            ctx.fillText(`${freq_uHz}`, x, height - 3);
+        const x = ((scaledFreq - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+        
+        if (freq_uHz < 1000) {
+            ctx.fillText(`${freq_uHz.toFixed(0)}`, x, height - 3);
+        } else {
+            ctx.fillText(`${(freq_uHz / 1000).toFixed(1)}`, x, height - 3);
         }
-    });
+    }
     
     // Y-axis label
     ctx.save();

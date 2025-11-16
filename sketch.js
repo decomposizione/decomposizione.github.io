@@ -12,6 +12,7 @@ let pendulumParams = {
     amplitude: 45,       // degrees
     qFactor: 1000,       // Quality factor (1e2 to 1e7)
     length: 150,         // visual length in pixels
+    lunarFreq: 22.344e-6 // Lunar/tidal modulation frequency (Hz)
 };
 
 // PLL parameters
@@ -23,6 +24,9 @@ let pllParams = {
 // Canvas dimensions
 const canvasWidth = 800;
 const canvasHeight = 500;
+
+// Simulation time scaling for visualization
+const simulationTimeScale = 1000; // Speed up tidal effects
 
 // Pendulum physics state
 let pendulumAngle = 0;
@@ -86,13 +90,10 @@ function updatePendulum() {
     let omega0 = 2 * Math.PI * pendulumParams.frequency;
     
     // Add tidal modulation to simulate real oceanographic conditions
-    // Main tidal components (scaled to be visible in simulation)
-    // M2: 22.344 µHz (period 12.42 hours) - scaled to simulation time
-    // S2: 23.148 µHz (period 12.00 hours)
-    const simulationTimeScale = 1000; // Speed up tidal effects for visualization
-    const tidalM2_freq = 22.344e-6 * simulationTimeScale; // Hz
-    const tidalS2_freq = 23.148e-6 * simulationTimeScale; // Hz
-    const tidalK1_freq = 11.607e-6 * simulationTimeScale; // Hz
+    // User-controllable lunar frequency (200 µHz to 0.1 Hz)
+    const tidalM2_freq = pendulumParams.lunarFreq; // User-controlled M2 frequency
+    const tidalS2_freq = 23.148e-6 * simulationTimeScale; // S2 (relative to M2)
+    const tidalK1_freq = 11.607e-6 * simulationTimeScale; // K1
     
     // Modulate the natural frequency with tidal components
     // This simulates how tidal forces would affect the pendulum
@@ -375,6 +376,10 @@ function updateVCOFrequency(freq) {
     if (pll) {
         pll.setVCOFrequency(freq);
     }
+}
+
+function updateLunarFrequency(freq) {
+    pendulumParams.lunarFreq = freq;
 }
 
 // Get PLL data for graphing

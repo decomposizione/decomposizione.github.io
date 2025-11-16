@@ -12,6 +12,7 @@ const translations = {
         labelGain: "PLL Loop Gain",
         labelQ: "Quality Factor Q",
         labelVco: "VCO Initial Frequency",
+        labelLunar: "Lunar Modulation Frequency",
         
         // Tooltips
         tooltipFreq: "Natural frequency of the pendulum oscillation",
@@ -19,6 +20,7 @@ const translations = {
         tooltipGain: "How fast the PLL locks to the signal",
         tooltipQ: "Oscillator quality factor (higher = less damping, longer oscillations)",
         tooltipVco: "Starting frequency of the Voltage Controlled Oscillator",
+        tooltipLunar: "Frequency of tidal modulation (M2 lunar component). Range: 200 µHz to 0.1 Hz",
         
         // Buttons
         btnReset: "Reset Simulation",
@@ -79,6 +81,7 @@ const translations = {
         labelGain: "Guadagno del Loop PLL",
         labelQ: "Fattore di Qualità Q",
         labelVco: "Frequenza Iniziale VCO",
+        labelLunar: "Frequenza Modulazione Lunare",
         
         // Tooltips
         tooltipFreq: "Frequenza naturale dell'oscillazione del pendolo",
@@ -86,6 +89,7 @@ const translations = {
         tooltipGain: "Velocità con cui il PLL si aggancia al segnale",
         tooltipQ: "Fattore di qualità dell'oscillatore (più alto = meno smorzamento, oscillazioni più lunghe)",
         tooltipVco: "Frequenza di partenza dell'Oscillatore Controllato in Tensione",
+        tooltipLunar: "Frequenza della modulazione mareale (componente lunare M2). Range: 200 µHz a 0.1 Hz",
         
         // Buttons
         btnReset: "Riavvia Simulazione",
@@ -171,6 +175,7 @@ function applyTranslations() {
     updateLabelText('label-gain', t.labelGain, t.tooltipGain);
     updateLabelText('label-q', t.labelQ, t.tooltipQ);
     updateLabelText('label-vco', t.labelVco, t.tooltipVco);
+    updateLabelText('label-lunar', t.labelLunar, t.tooltipLunar);
     
     // Buttons
     document.getElementById('btn-reset').textContent = t.btnReset;
