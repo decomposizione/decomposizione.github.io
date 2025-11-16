@@ -80,6 +80,36 @@ function setupSliders() {
         
         updateLunarFrequency(freqHz);
     });
+    
+    // Pendulum Spectrum Center Frequency Slider
+    const spectrumCenterSlider = document.getElementById('spectrum-center');
+    const spectrumCenterValue = document.getElementById('value-spectrum-center');
+    
+    spectrumCenterSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        spectrumCenterValue.textContent = value.toFixed(1) + ' Hz';
+        spectrumCenterFreq = value;
+    });
+    
+    // Tidal Spectrum Center Frequency Slider (logarithmic scale)
+    const tidalSpectrumCenterSlider = document.getElementById('tidal-spectrum-center');
+    const tidalSpectrumCenterValue = document.getElementById('value-tidal-spectrum-center');
+    
+    tidalSpectrumCenterSlider.addEventListener('input', (e) => {
+        const exponent = parseFloat(e.target.value);
+        const freqHz = Math.pow(10, exponent);
+        
+        // Display in appropriate units
+        if (freqHz < 1e-3) {
+            tidalSpectrumCenterValue.textContent = (freqHz * 1e6).toFixed(1) + ' µHz';
+        } else if (freqHz < 1) {
+            tidalSpectrumCenterValue.textContent = (freqHz * 1e3).toFixed(2) + ' mHz';
+        } else {
+            tidalSpectrumCenterValue.textContent = freqHz.toFixed(3) + ' Hz';
+        }
+        
+        tidalSpectrumCenterFreq = freqHz;
+    });
 }
 
 // Setup button controls
@@ -102,6 +132,10 @@ let phaseErrorCtx = null;
 let frequencyCtx = null;
 let spectrumCtx = null;
 let tidalSpectrumCtx = null;
+
+// User-controllable spectrum parameters
+let spectrumCenterFreq = 1.5; // Hz for pendulum spectrum
+let tidalSpectrumCenterFreq = 22.344e-6; // Hz for tidal spectrum
 
 // Initialize canvas contexts for graphs
 function initializeGraphs() {
@@ -377,47 +411,45 @@ function drawSpectrum(ctx, signal) {
     const dt = 0.016; // seconds per sample
     const fs = 1 / dt; // sampling frequency
     
+    // User-defined frequency range centered on spectrumCenterFreq
+    const freqRange = 3.0; // Hz, display range width
+    const minFreq = Math.max(0, spectrumCenterFreq - freqRange / 2);
+    const maxFreq = spectrumCenterFreq + freqRange / 2;
+    
     // Draw spectrum
     ctx.strokeStyle = '#2c3e50';
     ctx.lineWidth = 2;
     ctx.beginPath();
     
-    const freqRange = 3.0; // Hz, show up to 3 Hz
-    const numBins = Math.min(n / 2, Math.floor(n / 2 * freqRange / (fs / 2)));
+    const minBin = Math.floor(minFreq * n / fs);
+    const maxBin = Math.min(n / 2, Math.ceil(maxFreq * n / fs));
     
-    for (let i = 1; i < numBins; i++) {
+    let firstPoint = true;
+    for (let i = minBin; i < maxBin; i++) {
         const freq = i * fs / n;
-        const x = (freq / freqRange) * width;
+        const x = ((freq - minFreq) / (maxFreq - minFreq)) * width;
         const mag = magnitude[i] / maxMag;
         const y = height - 30 - (mag * (height - 50));
         
-        if (i === 1) {
+        if (firstPoint) {
             ctx.moveTo(x, y);
+            firstPoint = false;
         } else {
             ctx.lineTo(x, y);
         }
     }
     ctx.stroke();
     
-    // Draw tidal frequency markers (converted to 1 Hz system)
-    const tidalComponents = [
-        { name: 'M2', period: 12.42, color: '#e74c3c' },  // Lunar semidiurnal
-        { name: 'S2', period: 12.00, color: '#3498db' },  // Solar semidiurnal
-        { name: 'K1', period: 23.93, color: '#2ecc71' },  // Lunisolar diurnal
-        { name: 'O1', period: 25.82, color: '#f39c12' }   // Lunar diurnal
-    ];
-    
-    // For simulation: scale to match our 1 Hz oscillator
-    // Show harmonics and subharmonics of the fundamental
+    // Draw harmonics markers
     const fundamentalFreq = 1.0; // Hz
-    const harmonics = [0.5, 1.0, 1.5, 2.0, 2.5];
+    const harmonics = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
     
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
     
-    harmonics.forEach((harm, idx) => {
-        if (harm <= freqRange) {
-            const x = (harm / freqRange) * width;
+    harmonics.forEach((harm) => {
+        if (harm >= minFreq && harm <= maxFreq) {
+            const x = ((harm - minFreq) / (maxFreq - minFreq)) * width;
             
             ctx.strokeStyle = '#95a5a6';
             ctx.setLineDash([3, 3]);
@@ -432,10 +464,24 @@ function drawSpectrum(ctx, signal) {
         }
     });
     
-    // Add theoretical tidal markers (scaled for educational purposes)
-    ctx.font = '10px sans-serif';
+    // Title
     ctx.fillStyle = '#2c3e50';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
     ctx.fillText('Pendulum carrier frequency and harmonics', width / 2, 15);
+    
+    // Center marker
+    if (spectrumCenterFreq >= minFreq && spectrumCenterFreq <= maxFreq) {
+        const centerX = ((spectrumCenterFreq - minFreq) / (maxFreq - minFreq)) * width;
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, 0);
+        ctx.lineTo(centerX, height - 30);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
     
     // Axes
     ctx.strokeStyle = '#2c3e50';
@@ -470,14 +516,14 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
     
-    // Need very long signal for tidal frequencies
-    if (signal.length < 1024) {
+    // Update every 64 samples instead of waiting for 1024
+    if (signal.length < 64) {
         ctx.fillStyle = '#7f8c8d';
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Accumulating data for tidal analysis...', width / 2, height / 2);
         ctx.font = '12px sans-serif';
-        ctx.fillText(`${signal.length} / 1024 samples`, width / 2, height / 2 + 20);
+        ctx.fillText(`${signal.length} / 64 samples (updates every 64)`, width / 2, height / 2 + 20);
         return;
     }
     
@@ -507,20 +553,10 @@ function drawTidalSpectrum(ctx, signal) {
     
     // Tidal frequency range (in Hz)
     const simulationTimeScale = 1000; // Must match the scale in sketch.js
-    const minFreq = 10e-6 * simulationTimeScale; // 10 µHz scaled
-    const maxFreq = 30e-6 * simulationTimeScale; // 30 µHz scaled
     
-    // Find indices corresponding to tidal frequencies
-    const minBin = Math.floor(minFreq * n / fs);
-    const maxBin = Math.ceil(maxFreq * n / fs);
-    
-    // Adjust range based on user-set lunar frequency
-    // Get actual lunar frequency from pendulum params
-    const actualLunarFreq = (typeof pendulumParams !== 'undefined') ? pendulumParams.lunarFreq : 22.344e-6;
-    
-    // Center the display around the user's lunar frequency
-    const freqRange = 20e-6 * simulationTimeScale; // Display range
-    const centerFreq = actualLunarFreq * simulationTimeScale;
+    // Use user-defined center frequency
+    const centerFreq = tidalSpectrumCenterFreq * simulationTimeScale;
+    const freqRange = 20e-6 * simulationTimeScale; // Display range width
     const displayMinFreq = Math.max(1e-6 * simulationTimeScale, centerFreq - freqRange / 2);
     const displayMaxFreq = centerFreq + freqRange / 2;
     
@@ -555,6 +591,7 @@ function drawTidalSpectrum(ctx, signal) {
     ctx.stroke();
     
     // Draw tidal component markers
+    const actualLunarFreq = (typeof pendulumParams !== 'undefined') ? pendulumParams.lunarFreq : 22.344e-6;
     const tidalComponents = [
         { name: 'K1', freq: 11.607e-6, period: 23.93, color: '#2ecc71' },
         { name: 'O1', freq: 11.381e-6, period: 25.82, color: '#f39c12' },
@@ -602,6 +639,23 @@ function drawTidalSpectrum(ctx, signal) {
             }
         }
     });
+    
+    // Center marker (user-defined center)
+    const centerX = ((tidalSpectrumCenterFreq * simulationTimeScale - displayMinFreq) / (displayMaxFreq - displayMinFreq)) * width;
+    if (centerX >= 0 && centerX <= width) {
+        ctx.strokeStyle = '#9b59b6';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, 30);
+        ctx.lineTo(centerX, height - 40);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#9b59b6';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('CENTER', centerX, 45);
+    }
     
     // Title
     ctx.fillStyle = '#2c3e50';
