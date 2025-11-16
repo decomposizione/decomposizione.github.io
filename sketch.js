@@ -12,8 +12,14 @@ let pendulumParams = {
     amplitude: 45,       // degrees
     qFactor: 1000,       // Quality factor (1e2 to 1e7)
     length: 150,         // visual length in pixels
+    lengthCm: 150,       // physical length in cm
+    mass: 1.0,           // mass in kg
+    energyImpulse: 0.0,  // energy impulse in Joules when passing zero
     lunarFreq: 22.344e-6 // Lunar/tidal modulation frequency (Hz)
 };
+
+// Track zero crossings for energy impulse
+let lastAngleSign = 0;
 
 // PLL parameters
 let pllParams = {
@@ -87,7 +93,14 @@ function draw() {
 function updatePendulum() {
     const dt = 0.016; // ~60 fps
     
-    // Angular frequency (omega = 2 * pi * f)
+    // Calculate natural frequency from physical length
+    // For small angles: T = 2π√(L/g), so ω = √(g/L)
+    const g = 9.81; // m/s²
+    const lengthM = pendulumParams.lengthCm / 100; // convert cm to m
+    const omega0_natural = Math.sqrt(g / lengthM); // rad/s
+    
+    // Use user-set frequency or natural frequency (whichever is more appropriate)
+    // For now, use user frequency but adjust for length effects
     let omega0 = 2 * Math.PI * pendulumParams.frequency;
     
     // Add tidal modulation to simulate real oceanographic conditions
@@ -121,6 +134,26 @@ function updatePendulum() {
     
     // Update velocity and position (Euler integration)
     pendulumVelocity += acceleration * dt;
+    
+    // Check for zero crossing and apply energy impulse
+    const currentAngleSign = Math.sign(pendulumAngle);
+    if (lastAngleSign !== 0 && currentAngleSign !== 0 && lastAngleSign !== currentAngleSign) {
+        // Zero crossing detected! Apply energy impulse
+        if (pendulumParams.energyImpulse > 0) {
+            // Convert energy to velocity change
+            // E = 0.5 * m * v², so Δv = √(2E/m)
+            // For angular motion: E = 0.5 * I * ω², where I = m * L²
+            const momentOfInertia = pendulumParams.mass * lengthM * lengthM;
+            const currentKineticEnergy = 0.5 * momentOfInertia * pendulumVelocity * pendulumVelocity;
+            const newKineticEnergy = currentKineticEnergy + pendulumParams.energyImpulse;
+            
+            // Calculate new velocity (preserve direction)
+            const velocityMagnitude = Math.sqrt(2 * newKineticEnergy / momentOfInertia);
+            pendulumVelocity = Math.sign(pendulumVelocity) * velocityMagnitude;
+        }
+    }
+    lastAngleSign = currentAngleSign;
+    
     pendulumAngle += pendulumVelocity * dt;
     
     // Store signal for high-frequency FFT (record angular position)
@@ -153,24 +186,25 @@ function drawPendulum() {
     // Move origin to center top
     translate(width / 2, 100);
     
+    // Scale visual length based on physical length (50-200cm maps to reasonable visual range)
+    const minLength = 50;
+    const maxLength = 200;
+    const visualLength = map(pendulumParams.lengthCm, minLength, maxLength, 100, 200);
+    
     // Draw mounting point
     fill(60);
     noStroke();
     circle(0, 0, 15);
     
-    // Calculate bob position
-    const bobX = pendulumParams.length * sin(pendulumAngle);
-    const bobY = pendulumParams.length * cos(pendulumAngle);
+    // Calculate bob position using visual length
+    const bobX = visualLength * sin(pendulumAngle);
+    const bobY = visualLength * cos(pendulumAngle);
     
     // Draw rod
     stroke(60);
     strokeWeight(3);
     line(0, 0, bobX, bobY);
     
-    // Draw bob
-    fill(52, 152, 219);
-    noStroke();
-    circle(bobX, bobY, 30);
     
     // Draw motion trail (subtle arc)
     noFill();
@@ -178,8 +212,14 @@ function drawPendulum() {
     strokeWeight(1);
     const arcStart = -radians(pendulumParams.amplitude);
     const arcEnd = radians(pendulumParams.amplitude);
-    arc(0, 0, pendulumParams.length * 2, pendulumParams.length * 2, 
+    arc(0, 0, visualLength * 2, visualLength * 2, 
         arcStart, arcEnd);
+    
+    // Draw bob size proportional to mass
+    const bobSize = map(pendulumParams.mass, 1, 10, 25, 40);
+    fill(52, 152, 219);
+    noStroke();
+    circle(bobX, bobY, bobSize);
     
     pop();
 }
@@ -191,13 +231,18 @@ function drawPLLReference() {
     // Move origin to center top
     translate(width / 2, 100);
     
+    // Use same visual length as pendulum
+    const minLength = 50;
+    const maxLength = 200;
+    const visualLength = map(pendulumParams.lengthCm, minLength, maxLength, 100, 200);
+    
     // Get VCO phase from PLL
     const vcoOutput = pll.getVCOOutput();
     const vcoAngle = vcoOutput.phase - PI; // Convert to pendulum coordinate system
     
     // Calculate reference position
-    const refX = pendulumParams.length * sin(vcoAngle);
-    const refY = pendulumParams.length * cos(vcoAngle);
+    const refX = visualLength * sin(vcoAngle);
+    const refY = visualLength * cos(vcoAngle);
     
     // Draw reference bob (semi-transparent)
     fill(231, 76, 60, 150);
@@ -248,20 +293,25 @@ function drawInfo() {
     text(`Phase Error: ${(pll.phaseError * 180 / PI).toFixed(2)}°`, 20, 60);
     text(`Lock Status: ${pll.isLocked ? 'LOCKED' : 'ACQUIRING'}`, 20, 80);
     text(`Q Factor: ${pendulumParams.qFactor.toExponential(1)}`, 20, 100);
+    text(`Length: ${pendulumParams.lengthCm} cm | Mass: ${pendulumParams.mass.toFixed(1)} kg`, 20, 120);
+    if (pendulumParams.energyImpulse > 0) {
+        text(`Energy Impulse: ${pendulumParams.energyImpulse.toFixed(2)} J`, 20, 140);
+    }
     
     // Lock quality indicator
     const lockStatus = pll.getLockStatus();
     const lockQuality = lockStatus.lockQuality;
     
+    const lockBarY = pendulumParams.energyImpulse > 0 ? 155 : 135;
     fill(200);
-    rect(20, 115, 210, 15, 3);
+    rect(20, lockBarY, 210, 15, 3);
     
     if (pll.isLocked) {
         fill(46, 204, 113);
     } else {
         fill(231, 76, 60);
     }
-    rect(20, 115, 210 * lockQuality, 15, 3);
+    rect(20, lockBarY, 210 * lockQuality, 15, 3);
     
     pop();
     
@@ -332,6 +382,7 @@ function resetPendulum() {
     pendulumAngle = radians(pendulumParams.amplitude);
     pendulumVelocity = 0;
     pendulumTime = 0;
+    lastAngleSign = 0; // Reset zero crossing tracker
 }
 
 // Reset entire simulation
@@ -364,6 +415,25 @@ function updatePendulumAmplitude(amp) {
 
 function updateQFactor(q) {
     pendulumParams.qFactor = q;
+}
+
+function updatePendulumLength(lengthCm) {
+    pendulumParams.lengthCm = lengthCm;
+    // Update frequency based on new length (T = 2π√(L/g))
+    const g = 9.81;
+    const lengthM = lengthCm / 100;
+    const naturalPeriod = 2 * Math.PI * Math.sqrt(lengthM / g);
+    const naturalFreq = 1 / naturalPeriod;
+    // Optionally update frequency to match natural frequency
+    // pendulumParams.frequency = naturalFreq;
+}
+
+function updatePendulumMass(mass) {
+    pendulumParams.mass = mass;
+}
+
+function updateEnergyImpulse(energy) {
+    pendulumParams.energyImpulse = energy;
 }
 
 function updatePLLGain(gain) {

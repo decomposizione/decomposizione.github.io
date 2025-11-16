@@ -110,6 +110,36 @@ function setupSliders() {
         
         tidalSpectrumCenterFreq = freqHz;
     });
+    
+    // Pendulum Length Slider
+    const lengthSlider = document.getElementById('pendulum-length');
+    const lengthValue = document.getElementById('value-length');
+    
+    lengthSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        lengthValue.textContent = value + ' cm';
+        updatePendulumLength(value);
+    });
+    
+    // Pendulum Mass Slider
+    const massSlider = document.getElementById('pendulum-mass');
+    const massValue = document.getElementById('value-mass');
+    
+    massSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        massValue.textContent = value.toFixed(1) + ' kg';
+        updatePendulumMass(value);
+    });
+    
+    // Energy Impulse Slider
+    const energySlider = document.getElementById('energy-impulse');
+    const energyValue = document.getElementById('value-energy');
+    
+    energySlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        energyValue.textContent = value.toFixed(1) + ' J';
+        updateEnergyImpulse(value);
+    });
 }
 
 // Setup button controls

@@ -15,6 +15,9 @@ const translations = {
         labelLunar: "Lunar Modulation Frequency",
         labelSpectrumCenter: "Pendulum Spectrum Center (Hz)",
         labelTidalSpectrumCenter: "Tidal Spectrum Center (µHz)",
+        labelLength: "Pendulum Length (cm)",
+        labelMass: "Pendulum Mass (kg)",
+        labelEnergy: "Energy Impulse at Zero (J)",
         
         // Tooltips
         tooltipFreq: "Natural frequency of the pendulum oscillation",
@@ -25,6 +28,9 @@ const translations = {
         tooltipLunar: "Frequency of tidal modulation (M2 lunar component). Range: 200 µHz to 0.1 Hz",
         tooltipSpectrumCenter: "Center frequency for pendulum spectrum display. Adjust to zoom into specific frequency ranges",
         tooltipTidalSpectrumCenter: "Center frequency for tidal spectrum display. Adjust to explore different tidal components",
+        tooltipLength: "Physical length of the pendulum rod. Affects natural frequency: T = 2π√(L/g)",
+        tooltipMass: "Mass of the pendulum bob. Affects moment of inertia and energy calculations",
+        tooltipEnergy: "Energy added to the pendulum each time it passes through zero (vertical position). Simulates external driving force",
         
         // Buttons
         btnReset: "Reset Simulation",
@@ -88,6 +94,9 @@ const translations = {
         labelLunar: "Frequenza Modulazione Lunare",
         labelSpectrumCenter: "Centro Spettro Pendolo (Hz)",
         labelTidalSpectrumCenter: "Centro Spettro Mareale (µHz)",
+        labelLength: "Lunghezza Pendolo (cm)",
+        labelMass: "Massa Pendolo (kg)",
+        labelEnergy: "Impulso Energia allo Zero (J)",
         
         // Tooltips
         tooltipFreq: "Frequenza naturale dell'oscillazione del pendolo",
@@ -98,6 +107,9 @@ const translations = {
         tooltipLunar: "Frequenza della modulazione mareale (componente lunare M2). Range: 200 µHz a 0.1 Hz",
         tooltipSpectrumCenter: "Frequenza centrale per visualizzazione spettro pendolo. Regola per ingrandire specifici range di frequenza",
         tooltipTidalSpectrumCenter: "Frequenza centrale per visualizzazione spettro mareale. Regola per esplorare diverse componenti mareali",
+        tooltipLength: "Lunghezza fisica dell'asta del pendolo. Influenza la frequenza naturale: T = 2π√(L/g)",
+        tooltipMass: "Massa del peso del pendolo. Influenza il momento d'inerzia e i calcoli dell'energia",
+        tooltipEnergy: "Energia aggiunta al pendolo ogni volta che passa per lo zero (posizione verticale). Simula una forza esterna di guida",
         
         // Buttons
         btnReset: "Riavvia Simulazione",
@@ -186,6 +198,9 @@ function applyTranslations() {
     updateLabelText('label-lunar', t.labelLunar, t.tooltipLunar);
     updateLabelText('label-spectrum-center', t.labelSpectrumCenter, t.tooltipSpectrumCenter);
     updateLabelText('label-tidal-spectrum-center', t.labelTidalSpectrumCenter, t.tooltipTidalSpectrumCenter);
+    updateLabelText('label-length', t.labelLength, t.tooltipLength);
+    updateLabelText('label-mass', t.labelMass, t.tooltipMass);
+    updateLabelText('label-energy', t.labelEnergy, t.tooltipEnergy);
     
     // Buttons
     document.getElementById('btn-reset').textContent = t.btnReset;
