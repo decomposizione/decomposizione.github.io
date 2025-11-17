@@ -253,6 +253,7 @@ let phaseErrorCtx = null;
 let frequencyCtx = null;
 let spectrumCtx = null;
 let tidalSpectrumCtx = null;
+let tidalSNRCtx = null;
 let tidalPhaseCtx = null;
 
 // User-controllable spectrum parameters
@@ -265,12 +266,14 @@ function initializeGraphs() {
     const freqCanvas = document.getElementById('frequency-graph');
     const spectrumCanvas = document.getElementById('spectrum-graph');
     const tidalSpectrumCanvas = document.getElementById('tidal-spectrum-graph');
+    const tidalSNRCanvas = document.getElementById('tidal-snr-graph');
     const tidalPhaseCanvas = document.getElementById('tidal-phase-graph');
     
     phaseErrorCtx = phaseCanvas.getContext('2d');
     frequencyCtx = freqCanvas.getContext('2d');
     spectrumCtx = spectrumCanvas.getContext('2d');
     tidalSpectrumCtx = tidalSpectrumCanvas.getContext('2d');
+    tidalSNRCtx = tidalSNRCanvas.getContext('2d');
     tidalPhaseCtx = tidalPhaseCanvas.getContext('2d');
     
     // Set canvas dimensions
@@ -278,6 +281,7 @@ function initializeGraphs() {
     resizeGraphCanvas(freqCanvas);
     resizeGraphCanvas(spectrumCanvas);
     resizeGraphCanvas(tidalSpectrumCanvas);
+    resizeGraphCanvas(tidalSNRCanvas);
     resizeGraphCanvas(tidalPhaseCanvas);
     
     // Start animation loop for graphs
@@ -296,6 +300,8 @@ function resizeGraphCanvas(canvas) {
 
 // Clear all graphs
 function clearGraphs() {
+    // Clear SNR history when graphs are cleared
+    clearSNRHistory();
     if (phaseErrorCtx) {
         const canvas = phaseErrorCtx.canvas;
         phaseErrorCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -311,6 +317,10 @@ function clearGraphs() {
     if (tidalSpectrumCtx) {
         const canvas = tidalSpectrumCtx.canvas;
         tidalSpectrumCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    if (tidalSNRCtx) {
+        const canvas = tidalSNRCtx.canvas;
+        tidalSNRCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
     if (tidalPhaseCtx) {
         const canvas = tidalPhaseCtx.canvas;
@@ -370,6 +380,8 @@ function updateGraphs() {
         // Update tidal spectrum graph (calculates FFT)
         if (data.tidalSignal && data.tidalSignal.length > 0) {
             drawTidalSpectrum(tidalSpectrumCtx, data.tidalSignal);
+            // Draw SNR graph using the same FFT results
+            drawTidalSNR(tidalSNRCtx);
             // Draw phase using the same FFT results
             drawTidalPhase(tidalPhaseCtx);
         }
@@ -977,6 +989,199 @@ function drawTidalSpectrum(ctx, signal) {
     };
 }
 
+// Storage for SNR history
+let snrHistory = {
+    m2: [],
+    s2: [],
+    maxLength: 500 // Keep last 500 samples
+};
+
+// Clear SNR history
+function clearSNRHistory() {
+    snrHistory.m2 = [];
+    snrHistory.s2 = [];
+}
+
+// Draw M2 & S2 Signal-to-Noise Ratio over time
+function drawTidalSNR(ctx) {
+    const canvas = ctx.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Background
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Check if FFT results are available
+    if (!tidalFFTReal || !tidalFFTImag || !tidalFFTParams) {
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Accumulating data for SNR analysis...', width / 2, height / 2);
+        ctx.font = '12px sans-serif';
+        ctx.fillText('(waiting for FFT calculation)', width / 2, height / 2 + 20);
+        return;
+    }
+    
+    // Use stored FFT results
+    const n = tidalFFTParams.n;
+    const fs = tidalFFTParams.fs;
+    const simulationTimeScale = tidalFFTParams.simulationTimeScale;
+    const magnitude = tidalFFTParams.magnitude;
+    const freqResolution = fs / n;
+    
+    // M2 and S2 tidal frequencies
+    const actualLunarFreq = (typeof pendulumParams !== 'undefined') ? pendulumParams.lunarFreq : 22.344e-6;
+    const M2_FREQ = actualLunarFreq; // Hz
+    const S2_FREQ = 23.148e-6; // Hz
+    
+    // Find bins for M2 and S2 (scaled by simulationTimeScale)
+    const m2Bin = Math.max(0, Math.min(n / 2 - 1, Math.round(M2_FREQ * simulationTimeScale / freqResolution)));
+    const s2Bin = Math.max(0, Math.min(n / 2 - 1, Math.round(S2_FREQ * simulationTimeScale / freqResolution)));
+    
+    // Calculate SNR for M2 and S2
+    // SNR = signal_power / noise_power
+    // Use a 3-bin window for signal (peak ± 1 bin)
+    // Use side bins for noise estimation
+    const windowSize = 3;
+    const noiseWindowSize = 10;
+    
+    function calculateSNR(peakBin) {
+        // Signal: sum power in peak ± 1 bin
+        let signalPower = 0;
+        for (let i = -1; i <= 1; i++) {
+            const bin = Math.max(0, Math.min(n / 2 - 1, peakBin + i));
+            signalPower += magnitude[bin] * magnitude[bin];
+        }
+        
+        // Noise: average power from bins away from peak
+        let noisePower = 0;
+        let noiseCount = 0;
+        for (let i = -noiseWindowSize; i <= noiseWindowSize; i++) {
+            if (Math.abs(i) >= windowSize) { // Skip signal bins
+                const bin = Math.max(0, Math.min(n / 2 - 1, peakBin + i));
+                noisePower += magnitude[bin] * magnitude[bin];
+                noiseCount++;
+            }
+        }
+        noisePower = noiseCount > 0 ? noisePower / noiseCount : 1e-10;
+        
+        // SNR in dB
+        const snr = noisePower > 0 ? 10 * Math.log10(signalPower / noisePower) : 0;
+        return snr;
+    }
+    
+    const m2SNR = calculateSNR(m2Bin);
+    const s2SNR = calculateSNR(s2Bin);
+    
+    // Add to history
+    snrHistory.m2.push(m2SNR);
+    snrHistory.s2.push(s2SNR);
+    
+    // Trim history if too long
+    if (snrHistory.m2.length > snrHistory.maxLength) {
+        snrHistory.m2.shift();
+    }
+    if (snrHistory.s2.length > snrHistory.maxLength) {
+        snrHistory.s2.shift();
+    }
+    
+    // Draw SNR history
+    if (snrHistory.m2.length < 2) {
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Building SNR history...', width / 2, height / 2);
+        return;
+    }
+    
+    // Find min/max for autoscaling
+    const allSNR = [...snrHistory.m2, ...snrHistory.s2];
+    const minSNR = Math.min(...allSNR);
+    const maxSNR = Math.max(...allSNR);
+    const snrRange = maxSNR - minSNR;
+    const margin = Math.max(snrRange * 0.1, 5); // At least 5 dB margin
+    const scaledMin = minSNR - margin;
+    const scaledMax = maxSNR + margin;
+    
+    // Grid
+    ctx.strokeStyle = '#dee2e6';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = (height / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    // Draw M2 SNR
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < snrHistory.m2.length; i++) {
+        const x = (i / (snrHistory.maxLength - 1)) * width;
+        const y = height - 10 - ((snrHistory.m2[i] - scaledMin) / (scaledMax - scaledMin)) * (height - 20);
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Draw S2 SNR
+    ctx.strokeStyle = '#3498db';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < snrHistory.s2.length; i++) {
+        const x = (i / (snrHistory.maxLength - 1)) * width;
+        const y = height - 10 - ((snrHistory.s2[i] - scaledMin) / (scaledMax - scaledMin)) * (height - 20);
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Labels
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    
+    // Y-axis labels
+    for (let i = 0; i <= 4; i++) {
+        const value = scaledMin + (scaledMax - scaledMin) * (i / 4);
+        const y = height - 10 - (i / 4) * (height - 20);
+        ctx.fillText(value.toFixed(1) + ' dB', 5, y + 4);
+    }
+    
+    // Legend
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#e74c3c';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('M2: ' + m2SNR.toFixed(1) + ' dB', width - 10, 20);
+    ctx.fillStyle = '#3498db';
+    ctx.fillText('S2: ' + s2SNR.toFixed(1) + ' dB', width - 10, 40);
+    
+    // Title
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Signal-to-Noise Ratio Over Time', width / 2, 15);
+    
+    // X-axis label
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Time (samples)', width / 2, height - 3);
+}
+
 // Draw tidal frequency phase (20-25 µHz range) - uses FFT results from drawTidalSpectrum
 function drawTidalPhase(ctx) {
     const canvas = ctx.canvas;
@@ -1285,11 +1490,12 @@ function drawTidalPhase(ctx) {
 
 // Handle window resize
 window.addEventListener('resize', () => {
-    if (phaseErrorCtx && frequencyCtx && spectrumCtx && tidalSpectrumCtx && tidalPhaseCtx) {
+    if (phaseErrorCtx && frequencyCtx && spectrumCtx && tidalSpectrumCtx && tidalSNRCtx && tidalPhaseCtx) {
         resizeGraphCanvas(phaseErrorCtx.canvas);
         resizeGraphCanvas(frequencyCtx.canvas);
         resizeGraphCanvas(spectrumCtx.canvas);
         resizeGraphCanvas(tidalSpectrumCtx.canvas);
+        resizeGraphCanvas(tidalSNRCtx.canvas);
         resizeGraphCanvas(tidalPhaseCtx.canvas);
     }
 });

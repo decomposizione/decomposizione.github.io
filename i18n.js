@@ -50,6 +50,7 @@ const translations = {
         graphFreqLabel: "PLL Locked Frequency",
         graphSpectrumLabel: "Pendulum Spectrum (0-3 Hz)",
         graphTidalSpectrumLabel: "Tidal Frequency Spectrum (20-25 µHz)",
+        graphTidalSNRLabel: "M2 & S2 Signal-to-Noise Ratio Over Time",
         graphTidalPhaseLabel: "Tidal Frequency Phase (20-25 µHz)",
         
         // Info Panel
@@ -143,6 +144,7 @@ const translations = {
         graphFreqLabel: "Frequenza Agganciata del PLL",
         graphSpectrumLabel: "Spettro del Pendolo (0-3 Hz)",
         graphTidalSpectrumLabel: "Spettro Frequenze Mareali (20-25 µHz)",
+        graphTidalSNRLabel: "Rapporto Segnale/Rumore M2 & S2 nel Tempo",
         graphTidalPhaseLabel: "Fase Frequenze Mareali (20-25 µHz)",
         
         // Info Panel
@@ -256,6 +258,7 @@ function applyTranslations() {
     document.getElementById('graph-freq-label').textContent = t.graphFreqLabel;
     document.getElementById('graph-spectrum-label').textContent = t.graphSpectrumLabel;
     document.getElementById('graph-tidal-spectrum-label').textContent = t.graphTidalSpectrumLabel;
+    document.getElementById('graph-tidal-snr-label').textContent = t.graphTidalSNRLabel;
     document.getElementById('graph-tidal-phase-label').textContent = t.graphTidalPhaseLabel;
     
     // Info panel
