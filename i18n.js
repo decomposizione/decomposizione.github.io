@@ -9,6 +9,7 @@ const translations = {
         controlsTitle: "Controls",
         labelFreqDisplay: "Natural Frequency (Hz)",
         labelAmplitudeDisplay: "Current Amplitude (degrees)",
+        labelVcoFreq: "VCO Initial Frequency (Hz)",
         labelGain: "PLL Loop Gain",
         labelQ: "Quality Factor Q",
         labelLunar: "Lunar Modulation Frequency",
@@ -22,10 +23,11 @@ const translations = {
         // Tooltips
         tooltipFreqDisplay: "Calculated from pendulum length: f = √(g/L)/(2π). Not user-controllable.",
         tooltipAmplitudeDisplay: "Resulting amplitude from energy impulse and Q factor. Not user-controllable.",
-        tooltipGain: "How fast the PLL locks to the signal",
+        tooltipVcoFreq: "Initial frequency of the VCO (Voltage Controlled Oscillator). Defaults to natural pendulum frequency. Adjust to test PLL behavior with frequency offset.",
+        tooltipGain: "Loop gain (1-128): Controls VCO drift step size. Higher values = larger frequency corrections per zero crossing. Default: 1 count.",
         tooltipQ: "Oscillator quality factor (higher = less damping, longer oscillations)",
         tooltipLunar: "Frequency of tidal modulation (M2 lunar component). Range: 200 µHz to 0.1 Hz",
-        tooltipSimSpeed: "Speed multiplier for simulation. 1x = real-time, 1000x = 1000x faster. Range: 1x to 1000x",
+        tooltipSimSpeed: "Speed multiplier for simulation. 1x = real-time, 100000x = 100000x faster. Range: 1x to 100000x",
         tooltipSpectrumCenter: "Center frequency for pendulum spectrum display. Adjust to zoom into specific frequency ranges",
         tooltipTidalSpectrumCenter: "Center frequency for tidal spectrum display. Adjust to explore different tidal components",
         tooltipLength: "Physical length of the pendulum rod. Affects natural frequency: T = 2π√(L/g)",
@@ -100,6 +102,7 @@ const translations = {
         controlsTitle: "Controlli",
         labelFreqDisplay: "Frequenza Naturale (Hz)",
         labelAmplitudeDisplay: "Ampiezza Corrente (gradi)",
+        labelVcoFreq: "Frequenza Iniziale VCO (Hz)",
         labelGain: "Guadagno del Loop PLL",
         labelQ: "Fattore di Qualità Q",
         labelLunar: "Frequenza Modulazione Lunare",
@@ -113,10 +116,11 @@ const translations = {
         // Tooltips
         tooltipFreqDisplay: "Calcolata dalla lunghezza del pendolo: f = √(g/L)/(2π). Non controllabile dall'utente.",
         tooltipAmplitudeDisplay: "Ampiezza risultante dall'impulso di energia e dal fattore Q. Non controllabile dall'utente.",
-        tooltipGain: "Velocità con cui il PLL si aggancia al segnale",
+        tooltipVcoFreq: "Frequenza iniziale del VCO (Oscillatore Controllato in Tensione). Di default è la frequenza naturale del pendolo. Regola per testare il comportamento del PLL con offset di frequenza.",
+        tooltipGain: "Guadagno del loop (1-128): Controlla la dimensione dello step di deriva del VCO. Valori più alti = correzioni di frequenza più grandi per ogni passaggio per lo zero. Default: 1 conteggio.",
         tooltipQ: "Fattore di qualità dell'oscillatore (più alto = meno smorzamento, oscillazioni più lunghe)",
         tooltipLunar: "Frequenza della modulazione mareale (componente lunare M2). Range: 200 µHz a 0.1 Hz",
-        tooltipSimSpeed: "Moltiplicatore di velocità per la simulazione. 1x = tempo reale, 1000x = 1000 volte più veloce. Range: 1x a 1000x",
+        tooltipSimSpeed: "Moltiplicatore di velocità per la simulazione. 1x = tempo reale, 100000x = 100000 volte più veloce. Range: 1x a 100000x",
         tooltipSpectrumCenter: "Frequenza centrale per visualizzazione spettro pendolo. Regola per ingrandire specifici range di frequenza",
         tooltipTidalSpectrumCenter: "Frequenza centrale per visualizzazione spettro mareale. Regola per esplorare diverse componenti mareali",
         tooltipLength: "Lunghezza fisica dell'asta del pendolo. Influenza la frequenza naturale: T = 2π√(L/g)",
@@ -229,6 +233,7 @@ function applyTranslations() {
     }
     
     // Control labels
+    updateLabelText('label-vco-freq', t.labelVcoFreq, t.tooltipVcoFreq);
     updateLabelText('label-gain', t.labelGain, t.tooltipGain);
     updateLabelText('label-q', t.labelQ, t.tooltipQ);
     updateLabelText('label-lunar', t.labelLunar, t.tooltipLunar);

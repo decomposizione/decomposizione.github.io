@@ -23,7 +23,7 @@ let lastZeroCrossingTime = 0; // Track time of last zero crossing for period mea
 
 // PLL parameters
 let pllParams = {
-    loopGain: 1.0
+    loopGain: 1  // Loop gain: 1-128, controls VCO drift step size (number of counts)
     // VCO initial frequency is set from natural pendulum frequency
 };
 
@@ -101,9 +101,19 @@ function draw() {
             // Use small, constant dt for numerical stability
             updatePendulumWithDt(baseDt); // updatePendulumWithDt now handles sampling internally
             
-            // Update PLL with current pendulum phase (update at every step for accuracy)
-            const pendulumPhase = normalizeAngle(pendulumAngle + PI);
-            pll.update(pendulumPhase);
+            // PLL phase tracking (continuous) - just update VCO phase for visualization
+            // The actual frequency control happens at zero crossings
+            if (pll) {
+                const pendulumPhase = normalizeAngle(pendulumAngle + PI);
+                // Only update VCO phase continuously, not frequency
+                const omega = 2 * Math.PI * pll.vcoFreq * baseDt / 10;
+                pll.vcoPhase += omega;
+                while (pll.vcoPhase > 2 * Math.PI) pll.vcoPhase -= 2 * Math.PI;
+                while (pll.vcoPhase < 0) pll.vcoPhase += 2 * Math.PI;
+                
+                // Update phase error for display (but don't adjust frequency)
+                pll.phaseDetector(pendulumPhase);
+            }
         }
         
         // Update UI status
@@ -190,6 +200,12 @@ function updatePendulumWithDt(dt) {
             period = 1.0 / naturalFreq;
         }
         lastZeroCrossingTime = pendulumTime;
+        
+        // Update PLL VCO frequency at zero crossing based on phase error
+        if (pll) {
+            const pendulumPhase = normalizeAngle(pendulumAngle + PI);
+            pll.updateVCOAtZeroCrossing(pendulumPhase, period);
+        }
         
         // Sample for tidal frequency analysis
         // The period between zero crossings reflects the modulated frequency
@@ -461,6 +477,16 @@ function resetSimulation() {
     const naturalFreq = getNaturalFrequency();
     pll.reset(naturalFreq);
     
+    // Update VCO frequency slider to match natural frequency
+    if (typeof window !== 'undefined') {
+        const vcoFreqSlider = document.getElementById('vco-frequency');
+        const vcoFreqValue = document.getElementById('value-vco-freq');
+        if (vcoFreqSlider && vcoFreqValue) {
+            vcoFreqSlider.value = naturalFreq.toFixed(3);
+            vcoFreqValue.textContent = naturalFreq.toFixed(3) + ' Hz';
+        }
+    }
+    
     // Clear sampling buffers
     signalHistory = [];
     tidalSignalHistory = [];
@@ -507,6 +533,15 @@ function updatePendulumLength(lengthCm) {
     if (pll) {
         pll.setVCOFrequency(naturalFreq);
     }
+    // Update VCO frequency slider to match natural frequency
+    if (typeof window !== 'undefined') {
+        const vcoFreqSlider = document.getElementById('vco-frequency');
+        const vcoFreqValue = document.getElementById('value-vco-freq');
+        if (vcoFreqSlider && vcoFreqValue) {
+            vcoFreqSlider.value = naturalFreq.toFixed(3);
+            vcoFreqValue.textContent = naturalFreq.toFixed(3) + ' Hz';
+        }
+    }
 }
 
 function updatePendulumMass(mass) {
@@ -515,6 +550,12 @@ function updatePendulumMass(mass) {
 
 function updateEnergyImpulse(energy) {
     pendulumParams.energyImpulse = energy;
+}
+
+function updateVCOFrequency(freq) {
+    if (pll) {
+        pll.setVCOFrequency(freq);
+    }
 }
 
 function updatePLLGain(gain) {

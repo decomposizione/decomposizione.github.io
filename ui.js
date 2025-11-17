@@ -48,13 +48,46 @@ function updateAmplitudeDisplay() {
 
 // Setup all slider controls
 function setupSliders() {
+    // VCO Initial Frequency Slider
+    const vcoFreqSlider = document.getElementById('vco-frequency');
+    const vcoFreqValue = document.getElementById('value-vco-freq');
+    
+    // Function to initialize VCO frequency from natural frequency
+    function initializeVCOFrequency() {
+        if (typeof window !== 'undefined' && window.pendulumParams) {
+            const g = 9.81;
+            const lengthM = window.pendulumParams.lengthCm / 100;
+            const naturalFreq = Math.sqrt(g / lengthM) / (2 * Math.PI);
+            vcoFreqSlider.value = naturalFreq.toFixed(3);
+            vcoFreqValue.textContent = naturalFreq.toFixed(3) + ' Hz';
+            if (typeof updateVCOFrequency === 'function') {
+                updateVCOFrequency(naturalFreq);
+            }
+            return true;
+        }
+        return false;
+    }
+    
+    // Try to initialize immediately, or wait a bit for sketch.js to load
+    if (!initializeVCOFrequency()) {
+        setTimeout(initializeVCOFrequency, 100);
+    }
+    
+    vcoFreqSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        vcoFreqValue.textContent = value.toFixed(3) + ' Hz';
+        if (typeof updateVCOFrequency === 'function') {
+            updateVCOFrequency(value);
+        }
+    });
+    
     // PLL Loop Gain Slider
     const gainSlider = document.getElementById('pll-gain');
     const gainValue = document.getElementById('value-gain');
     
     gainSlider.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        gainValue.textContent = value.toFixed(2);
+        const value = parseInt(e.target.value);
+        gainValue.textContent = value;
         updatePLLGain(value);
     });
     
@@ -89,7 +122,7 @@ function setupSliders() {
         updateLunarFrequency(freqHz);
     });
     
-    // Simulation Speed Slider (logarithmic scale: 1x to 1000x)
+    // Simulation Speed Slider (logarithmic scale: 1x to 100000x)
     const simSpeedSlider = document.getElementById('sim-speed');
     const simSpeedValue = document.getElementById('value-sim-speed');
     
@@ -101,14 +134,21 @@ function setupSliders() {
     
     simSpeedSlider.addEventListener('input', (e) => {
         const exponent = parseFloat(e.target.value);
-        const speed = Math.pow(10, exponent); // 10^0 = 1x, 10^3 = 1000x
+        const speed = Math.pow(10, exponent); // 10^0 = 1x, 10^5 = 100000x
         
         if (speed < 1.1) {
             simSpeedValue.textContent = speed.toFixed(2) + 'x';
         } else if (speed < 10) {
             simSpeedValue.textContent = speed.toFixed(1) + 'x';
-        } else {
+        } else if (speed < 1000) {
             simSpeedValue.textContent = Math.round(speed) + 'x';
+        } else {
+            // For very large numbers, use scientific notation or abbreviated format
+            if (speed >= 1000 && speed < 1000000) {
+                simSpeedValue.textContent = (speed / 1000).toFixed(0) + 'Kx';
+            } else {
+                simSpeedValue.textContent = (speed / 1000).toFixed(0) + 'Kx';
+            }
         }
         updateSimulationSpeed(speed);
     });
@@ -292,14 +332,35 @@ function updateGraphs() {
             showZeroLine: true
         });
         
-        // Update frequency graph
-        drawGraph(frequencyCtx, data.frequency, {
-            color: '#3498db',
-            label: 'Frequency (Hz)',
-            min: 0.3,
-            max: 2.5,
-            showZeroLine: false
-        });
+        // Update frequency graph with autoscaling
+        if (data.frequency && data.frequency.length > 0) {
+            // Find min/max frequency values for autoscaling
+            const minFreq = Math.min(...data.frequency);
+            const maxFreq = Math.max(...data.frequency);
+            
+            // Add margin (10% on each side)
+            const freqRange = maxFreq - minFreq;
+            const margin = Math.max(freqRange * 0.1, 0.05); // At least 0.05 Hz margin
+            const scaledMin = Math.max(0.1, minFreq - margin);
+            const scaledMax = maxFreq + margin;
+            
+            drawGraph(frequencyCtx, data.frequency, {
+                color: '#3498db',
+                label: 'Frequency (Hz)',
+                min: scaledMin,
+                max: scaledMax,
+                showZeroLine: false
+            });
+        } else {
+            // Default range if no data
+            drawGraph(frequencyCtx, data.frequency, {
+                color: '#3498db',
+                label: 'Frequency (Hz)',
+                min: 0.3,
+                max: 2.5,
+                showZeroLine: false
+            });
+        }
         
         // Update spectrum graph
         if (data.signal && data.signal.length > 0) {

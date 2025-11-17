@@ -2,13 +2,13 @@
 // Components: Phase Detector, Loop Filter, VCO (Voltage Controlled Oscillator)
 
 class PLL {
-    constructor(initialFreq = 1.0, loopGain = 1.0) {
+    constructor(initialFreq = 1.0, loopGain = 1) {
         // VCO (Voltage Controlled Oscillator) state
-        this.vcoFreq = initialFreq;  // Current VCO frequency (cycles/day)
+        this.vcoFreq = initialFreq;  // Current VCO frequency (Hz)
         this.vcoPhase = 0;            // Current VCO phase (radians)
         
         // Loop parameters
-        this.loopGain = loopGain;     // Overall loop gain (Kp)
+        this.loopGain = loopGain;     // Loop gain: 1-128, controls VCO drift step size (number of counts)
         this.integralGain = 0.1;      // Integral gain for type-2 loop (Ki)
         
         // Filter state
@@ -88,6 +88,39 @@ class PLL {
         // Wrap phase to [0, 2*PI]
         while (this.vcoPhase > 2 * Math.PI) this.vcoPhase -= 2 * Math.PI;
         while (this.vcoPhase < 0) this.vcoPhase += 2 * Math.PI;
+    }
+    
+    // Update VCO frequency only at zero crossing (discrete control)
+    // This is called when pendulum passes through zero
+    // Loop gain controls the drift step size (number of counts)
+    updateVCOAtZeroCrossing(inputPhase, measuredPeriod) {
+        // 1. Phase Detector - measure phase error at zero crossing
+        const phaseErr = this.phaseDetector(inputPhase);
+        
+        // 2. Loop Filter - calculate control voltage
+        const controlVoltage = this.loopFilter(phaseErr);
+        
+        // 3. Update VCO frequency based on control voltage and loop gain
+        // Loop gain represents the number of counts (drift step size)
+        // Base VCO gain per count (Hz per count)
+        const baseVcoGain = 0.001; // Small base step per count
+        const expectedPeriod = 1.0 / this.vcoFreq;
+        
+        // Adjust frequency based on phase error, measured period, and loop gain
+        // If phase error is positive, VCO is lagging - increase frequency
+        // If phase error is negative, VCO is leading - decrease frequency
+        // Loop gain multiplies the correction (more gain = larger steps)
+        const frequencyCorrection = baseVcoGain * this.loopGain * controlVoltage * (measuredPeriod / expectedPeriod);
+        this.vcoFreq += frequencyCorrection;
+        
+        // Limit frequency to reasonable range
+        this.vcoFreq = Math.max(0.1, Math.min(3.0, this.vcoFreq));
+        
+        // 4. Update lock status
+        this.updateLockStatus();
+        
+        // 5. Update history
+        this.updateHistory();
     }
     
     // Main PLL update function

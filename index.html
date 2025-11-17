@@ -41,12 +41,21 @@
                 </div>
 
                 <div class="control-group">
+                    <label for="vco-frequency" id="label-vco-freq">
+                        VCO Initial Frequency (Hz)
+                        <span class="info-icon" title="Initial frequency of the VCO (Voltage Controlled Oscillator). Defaults to natural pendulum frequency.">ⓘ</span>
+                    </label>
+                    <input type="range" id="vco-frequency" min="0.1" max="2.0" step="0.01" value="0.407">
+                    <span id="value-vco-freq" class="value-display">0.407 Hz</span>
+                </div>
+
+                <div class="control-group">
                     <label for="pll-gain" id="label-gain">
                         PLL Loop Gain
                         <span class="info-icon" title="How fast the PLL locks to the signal">ⓘ</span>
                     </label>
-                    <input type="range" id="pll-gain" min="0.1" max="5.0" step="0.1" value="1.0">
-                    <span id="value-gain" class="value-display">1.00</span>
+                    <input type="range" id="pll-gain" min="1" max="128" step="1" value="1">
+                    <span id="value-gain" class="value-display">1</span>
                 </div>
 
                 <div class="control-group">
@@ -72,7 +81,7 @@
                         Simulation Speed
                         <span class="info-icon" title="Speed multiplier for simulation (1x = real-time)">ⓘ</span>
                     </label>
-                    <input type="range" id="sim-speed" min="0" max="3" step="0.01" value="3">
+                    <input type="range" id="sim-speed" min="0" max="5" step="0.01" value="3">
                     <span id="value-sim-speed" class="value-display">1000x</span>
                 </div>
 
